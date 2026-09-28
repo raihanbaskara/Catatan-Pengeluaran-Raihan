@@ -870,13 +870,10 @@ async function syncToGoogleSheets(newTransactions = [], forceFullSync = false) {
   if (webhookUrl && webhookUrl.startsWith('https://script.google.com/')) {
     try {
       const payload = {
-        action: forceFullSync ? 'FULL_SYNC' : 'APPEND',
+        action: 'APPEND',
         timestamp,
         wallets,
         newRows: newTransactions.map(formatTransactionRow),
-        allTransactions: forceFullSync
-          ? getTransactions({ limit: 500 }).reverse().map(formatTransactionRow)
-          : undefined,
       };
 
       const res = await fetch(webhookUrl, {
