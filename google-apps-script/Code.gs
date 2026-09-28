@@ -17,7 +17,7 @@
  */
 
 const SPREADSHEET_ID = '1_UvnRmnVZzxfzNp-mASlWtrpuqShcDD8ei8NuHK3YkM';
-const INITIAL_DATA = {"wallets":{"cash":{"id":"CASH","name":"Saldo Uang Tunai (Cash)","initial_balance":500000,"total_income":0,"total_expense":10000,"balance":490000,"updated_at":"2026-09-28T14:49:18.804Z"},"atm":{"id":"ATM","name":"Saldo ATM 1","initial_balance":2500000,"total_income":2000000,"total_expense":0,"balance":4000000,"updated_at":"2026-09-28T14:49:18.804Z"},"atm1":{"id":"ATM","name":"Saldo ATM 1","initial_balance":2500000,"total_income":2000000,"total_expense":0,"balance":4000000,"updated_at":"2026-09-28T14:49:18.804Z"},"atm2":{"id":"ATM2","name":"Saldo ATM 2","initial_balance":1000000,"total_income":0,"total_expense":18000,"balance":1482000,"updated_at":"2026-09-28T14:49:18.804Z"},"total":{"id":"TOTAL","name":"Total Saldo Gabungan","initial_balance":4000000,"total_income":2000000,"total_expense":28000,"balance":5972000,"updated_at":"2026-09-28T14:49:18.804Z"}},"transactions":[[true,"28 Sep 2026","Beli makan seblak","Food",10000,"Uang Tunai","PENGELUARAN",490000,2500000,"beli makan seblak 10 ribu"],[true,"28 Sep 2026","Beli kopi","Food",18000,"Saldo ATM 2","PENGELUARAN",490000,2500000,"beli kopi 18rb pakai qris"],[true,"28 Sep 2026","Uang masuk","Gifts",2000000,"Saldo ATM 1","PEMASUKAN",490000,4500000,"uang masuk 2 juta"],[true,"28 Sep 2026","Alokasi Jajan ATM 1 ke ATM 2","Food",500000,"ATM 1 -> ATM 2","PINDAH SALDO",490000,4000000,"isi atm 2 500 ribu"]],"timestamp":"28 Sep 2026"};
+const INITIAL_DATA = {"wallets":{"cash":{"id":"CASH","name":"Saldo Uang Tunai (Cash)","initial_balance":0,"total_income":0,"total_expense":0,"balance":0,"updated_at":"2026-09-28T15:19:22.760Z"},"atm":{"id":"ATM","name":"Saldo ATM 1","initial_balance":0,"total_income":0,"total_expense":0,"balance":0,"updated_at":"2026-09-28T15:19:22.768Z"},"atm1":{"id":"ATM","name":"Saldo ATM 1","initial_balance":0,"total_income":0,"total_expense":0,"balance":0,"updated_at":"2026-09-28T15:19:22.768Z"},"atm2":{"id":"ATM2","name":"Saldo ATM 2","initial_balance":0,"total_income":0,"total_expense":0,"balance":0,"updated_at":"2026-09-28T15:19:22.775Z"},"total":{"id":"TOTAL","name":"Total Saldo Gabungan","initial_balance":0,"total_income":0,"total_expense":0,"balance":0,"updated_at":"2026-09-28T15:19:22.760Z"}},"transactions":[],"timestamp":"28 Sep 2026"};
 
 const CATEGORIES = [
   ['Home Rent', 1350000, 'Needs', 'Saldo ATM 1'],
@@ -572,10 +572,39 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    // Always sync initial_balance of the 3 Wallets into Setup!B2 (Tunai), Setup!B3 (ATM 1), Setup!B4 (ATM 2)
+    const setupSheet = ss.getSheetByName('Setup');
+    if (setupSheet && payload.wallets) {
+      if (payload.wallets.cash && typeof payload.wallets.cash.initial_balance === 'number') {
+        setupSheet.getRange('B2').setValue(payload.wallets.cash.initial_balance);
+      }
+      if (payload.wallets.atm && typeof payload.wallets.atm.initial_balance === 'number') {
+        setupSheet.getRange('B3').setValue(payload.wallets.atm.initial_balance);
+      }
+      if (payload.wallets.atm2 && typeof payload.wallets.atm2.initial_balance === 'number') {
+        setupSheet.getRange('B4').setValue(payload.wallets.atm2.initial_balance);
+      }
+    }
+
+    // If all 3 wallets were reset to 0 on Website/WA, clear Spending rows so Report!D6, H6, I6 are cleanly Rp 0
+    if (
+      payload.wallets &&
+      Number(payload.wallets.cash?.balance || 0) === 0 &&
+      Number(payload.wallets.atm?.balance || 0) === 0 &&
+      Number(payload.wallets.atm2?.balance || 0) === 0 &&
+      (!payload.newRows || payload.newRows.length === 0)
+    ) {
+      const sp = ss.getSheetByName('Spending');
+      if (sp) {
+        sp.getRange('A4:J200').clearContent();
+        sp.getRange('A4:A200').insertCheckboxes();
+      }
+    }
+
     // Non-destructive patch if FULL_SYNC is triggered on an existing spreadsheet
     if (payload.action === 'FULL_SYNC') {
       updateDropdownDanAtmTanpaReset();
-      return ContentService.createTextOutput(JSON.stringify({ ok: true, message: 'Non-Destructive Patch Applied (User Edits Preserved)!' }))
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, message: 'Non-Destructive Patch & Saldo 3 Dompet Synced!' }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -613,7 +642,7 @@ function doGet() {
     var wallets = null;
     if (reportSheet) {
       wallets = {
-        cash: Number(reportSheet.getRange('F6').getValue() || 0),
+        cash: Number(reportSheet.getRange('D6').getValue() || 0),
         atm1: Number(reportSheet.getRange('H6').getValue() || 0),
         atm2: Number(reportSheet.getRange('I6').getValue() || 0)
       };
