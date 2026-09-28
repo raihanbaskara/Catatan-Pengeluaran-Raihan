@@ -199,6 +199,12 @@ function resetSaldoDanTransaksiKeNolTanpaUbahKategori() {
     spendingSheet.getRange(4, 1, maxR, 1).setValue(false);
   }
 
+  // Nol-kan angka Allocation/Target Budget contoh (D9:D17) di Report tanpa mengubah nama Kategori (B9:C17)
+  const reportSheet = ss.getSheetByName('Report');
+  if (reportSheet) {
+    reportSheet.getRange('D9:D17').setValue(0).setNumberFormat('"Rp"#,##0');
+  }
+
   updateDropdownDanAtmTanpaReset();
 }
 
@@ -251,9 +257,17 @@ function updateDropdownDanAtmTanpaReset() {
   // 3. Pasang Dropdown Tahun, Dropdown Bulan (Filter Aktif), & Kartu ATM 1 + ATM 2 di Tab [Report]
   applyReportDropdownAndAtmCards(reportSheet);
 
-  // 4. Update Referensi Kartu Saldo di Tab [Budgeting] & [Summary] Tanpa Merusak Tabel Budget
+  // 4. Update Referensi Income Sources (B4:B7), Kartu Saldo (A10:B13), & Budgeting List (A16:B25) di Tab [Budgeting]
   const budgetingSheet = ss.getSheetByName('Budgeting');
   if (budgetingSheet) {
+    budgetingSheet.getRange('A4:B7').setValues([
+      ['Saldo Awal Uang Tunai', '=Setup!B2'],
+      ['Saldo Awal ATM 1 & ATM 2', '=Setup!B3+Setup!B4'],
+      ['Pemasukan Tambahan WA', '=SUMIFS(Spending!E4:E200,Spending!A4:A200,TRUE,Spending!G4:G200,"PEMASUKAN")'],
+      ['Total', '=SUM(B4:B6)']
+    ]);
+    budgetingSheet.getRange('B4:B7').setNumberFormat('"Rp"#,##0');
+
     budgetingSheet.getRange('A10:B13').setValues([
       ['💵 Sisa Saldo Uang Tunai', '=Report!D6'],
       ['🏦 Sisa Saldo ATM 1 (Simpanan)', '=Report!H6'],
@@ -261,6 +275,16 @@ function updateDropdownDanAtmTanpaReset() {
       ['Grand Total Saldo Aktif', '=B10+B11+B12']
     ]);
     budgetingSheet.getRange('B10:B13').setNumberFormat('"Rp"#,##0');
+
+    // Sinkronkan nama kategori & target budget di Budgeting (A16:B24) langsung ke tabel Report (B9:D17)
+    for (var bIdx = 0; bIdx < 9; bIdx++) {
+      var repRow = 9 + bIdx;
+      var budRow = 16 + bIdx;
+      budgetingSheet.getRange(budRow, 1).setFormula('=Report!B' + repRow);
+      budgetingSheet.getRange(budRow, 2).setFormula('=Report!D' + repRow).setNumberFormat('"Rp"#,##0');
+    }
+    budgetingSheet.getRange('A25:B25').setValues([['Total Budget', '=SUM(B16:B24)']])
+      .setNumberFormat('"Rp"#,##0');
   }
 
   const summarySheet = ss.getSheetByName('Summary');
