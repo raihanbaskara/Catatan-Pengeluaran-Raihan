@@ -17,9 +17,9 @@ try {
 } catch {}
 
 const nowIso = () => new Date().toISOString();
-const initialCash = parseInt(process.env.INITIAL_CASH_BALANCE || '420000', 10);
-const initialAtm = parseInt(process.env.INITIAL_ATM_BALANCE || '8300000', 10);
-const initialAtm2 = parseInt(process.env.INITIAL_ATM2_BALANCE || '4182000', 10);
+const initialCash = parseInt(process.env.INITIAL_CASH_BALANCE || '0', 10);
+const initialAtm = parseInt(process.env.INITIAL_ATM_BALANCE || '0', 10);
+const initialAtm2 = parseInt(process.env.INITIAL_ATM2_BALANCE || '0', 10);
 
 const defaultSettings = {
   spreadsheet_id: process.env.SPREADSHEET_ID || '1_UvnRmnVZzxfzNp-mASlWtrpuqShcDD8ei8NuHK3YkM',
@@ -250,20 +250,46 @@ function setWalletBalance(walletId, newBalance) {
   if (useSqlite) {
     const current = db.prepare(`SELECT * FROM wallets WHERE id = ?`).get(targetId);
     if (!current) throw new Error(`Wallet ${targetId} tidak ditemukan`);
-    const newInitial = numericBalance - current.total_income + current.total_expense;
-    db.prepare(`
-      UPDATE wallets
-      SET balance = ?, initial_balance = ?, updated_at = ?
-      WHERE id = ?
-    `).run(numericBalance, newInitial, nowIso(), targetId);
+    if (numericBalance === 0) {
+      db.prepare(`
+        UPDATE wallets
+        SET balance = 0, initial_balance = 0, total_income = 0, total_expense = 0, updated_at = ?
+        WHERE id = ?
+      `).run(nowIso(), targetId);
+      const w = getWallets();
+      if ((w.cash?.balance || 0) === 0 && (w.atm?.balance || 0) === 0 && (w.atm2?.balance || 0) === 0) {
+        db.exec(`DELETE FROM transactions`);
+      }
+    } else {
+      const newInitial = numericBalance - current.total_income + current.total_expense;
+      db.prepare(`
+        UPDATE wallets
+        SET balance = ?, initial_balance = ?, updated_at = ?
+        WHERE id = ?
+      `).run(numericBalance, newInitial, nowIso(), targetId);
+    }
     return getWallets();
   }
 
   loadJsonStore();
   const current = memoryStore.wallets[targetId];
   if (!current) throw new Error(`Wallet ${targetId} tidak ditemukan`);
-  current.balance = numericBalance;
-  current.initial_balance = numericBalance - current.total_income + current.total_expense;
+  if (numericBalance === 0) {
+    current.balance = 0;
+    current.initial_balance = 0;
+    current.total_income = 0;
+    current.total_expense = 0;
+    if (
+      (memoryStore.wallets.CASH?.balance || 0) === 0 &&
+      (memoryStore.wallets.ATM?.balance || 0) === 0 &&
+      (memoryStore.wallets.ATM2?.balance || 0) === 0
+    ) {
+      memoryStore.transactions = [];
+    }
+  } else {
+    current.balance = numericBalance;
+    current.initial_balance = numericBalance - current.total_income + current.total_expense;
+  }
   current.updated_at = nowIso();
   saveJsonStore();
   return getWallets();
