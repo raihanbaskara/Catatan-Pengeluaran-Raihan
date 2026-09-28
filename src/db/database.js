@@ -26,7 +26,9 @@ const defaultSettings = {
   spreadsheet_url:
     process.env.SPREADSHEET_URL ||
     'https://docs.google.com/spreadsheets/d/1_UvnRmnVZzxfzNp-mASlWtrpuqShcDD8ei8NuHK3YkM/edit?usp=sharing',
-  apps_script_webhook_url: process.env.APPS_SCRIPT_WEBHOOK_URL || '',
+  apps_script_webhook_url:
+    process.env.APPS_SCRIPT_WEBHOOK_URL ||
+    'https://script.google.com/macros/s/AKfycbxdhh_Lfug1rDisxX4KTShgwMb5NzcBQPm-zP76vZHwZycZ55uhT8Qk8ooYzCpSo85mBw/exec',
   google_service_account_json: '',
   ai_provider: process.env.AI_PROVIDER || 'openrouter',
   ai_base_url: process.env.AI_BASE_URL || 'https://openrouter.ai/api/v1',
@@ -122,6 +124,9 @@ try {
   if (process.env.FONNTE_TOKEN) {
     db.prepare(`UPDATE settings SET value = ? WHERE key = 'fonnte_token'`).run(process.env.FONNTE_TOKEN);
   }
+  db.prepare(`UPDATE settings SET value = ? WHERE key = 'apps_script_webhook_url' AND (value = '' OR value IS NULL)`).run(
+    defaultSettings.apps_script_webhook_url
+  );
   useSqlite = true;
 } catch {
   useSqlite = false;
