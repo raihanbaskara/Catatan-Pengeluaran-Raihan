@@ -35,6 +35,8 @@ async function startWhatsAppBot(onStateUpdate = () => {}) {
       useMultiFileAuthState,
       DisconnectReason,
       fetchLatestBaileysVersion,
+      makeCacheableSignalKeyStore,
+      generateMessageIDV2,
     } = baileys;
 
     const baseDataDir = process.env.DATA_DIR
@@ -43,9 +45,24 @@ async function startWhatsAppBot(onStateUpdate = () => {}) {
     const authDir = path.join(baseDataDir, 'wa-auth');
     if (!fs.existsSync(authDir)) {
       fs.mkdirSync(authDir, { recursive: true });
+    } else {
+      // Purge stale recipient Signal ratchet sessions (session-*.json) on boot while preserving creds.json
+      // This forces Baileys to send a fresh PreKeySignalMessage (pkmsg) to iPhone (:0) so it never gets stuck on "Menunggu pesan ini"
+      try {
+        for (const file of fs.readdirSync(authDir)) {
+          if (file.startsWith('session-')) {
+            fs.rmSync(path.join(authDir, file), { force: true });
+          }
+        }
+      } catch {}
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(authDir);
+    const silentLogger = pino({ level: 'silent' });
+    const authKeys = typeof makeCacheableSignalKeyStore === 'function'
+      ? makeCacheableSignalKeyStore(state.keys, silentLogger)
+      : state.keys;
+
     let version = [2, 3000, 1015901307];
     try {
       const latest = await fetchLatestBaileysVersion();
@@ -54,9 +71,12 @@ async function startWhatsAppBot(onStateUpdate = () => {}) {
 
     const sock = makeWASocket({
       version,
-      auth: state,
+      auth: {
+        creds: state.creds,
+        keys: authKeys,
+      },
       printQRInTerminal: false,
-      logger: pino({ level: 'silent' }),
+      logger: silentLogger,
       browser: ['Bot Keuangan AI', 'Chrome', '1.0.0'],
       syncFullHistory: false,
       markOnlineOnConnect: true,
@@ -69,6 +89,7 @@ async function startWhatsAppBot(onStateUpdate = () => {}) {
     });
 
     waSocket = sock;
+    sock.__generateMessageIDV2 = generateMessageIDV2;
 
     sock.ev.on('creds.update', saveCreds);
 
@@ -224,14 +245,40 @@ async function startWhatsAppBot(onStateUpdate = () => {}) {
             waState.lastMessageAt = new Date().toISOString();
             lastReplyText = result.reply;
 
-            // Send directly to standard @s.whatsapp.net JID without @lid quote stanza to prevent "Menunggu pesan ini"
             const targetJid = '6281335499566@s.whatsapp.net';
-            const sent = await sock.sendMessage(targetJid, { text: result.reply });
+
+            // Ensure iPhone primary device (:0) receives a fresh PreKeySignalMessage (pkmsg) if session was ever desynced
+            if (!sock.__iphonePreKeySynced) {
+              sock.__iphonePreKeySynced = true;
+              try {
+                await authKeys.set({
+                  session: {
+                    '6281335499566.0': null,
+                    '115685296451610.0': null,
+                  },
+                });
+                if (typeof sock.assertSessions === 'function') {
+                  await sock.assertSessions([targetJid, remoteJid].filter(Boolean), true);
+                }
+              } catch {}
+            }
+
+            // Pre-generate and cache message BEFORE sendMessage so any instant iOS retry receipt finds it immediately
+            const outMsgId =
+              typeof generateMessageIDV2 === 'function' ? generateMessageIDV2(sock.user?.id) : undefined;
+            if (outMsgId) {
+              processedMsgIds.add(outMsgId);
+              sentMessagesCache.set(outMsgId, { conversation: result.reply });
+            }
+
+            const sent = await sock.sendMessage(
+              targetJid,
+              { text: result.reply },
+              outMsgId ? { messageId: outMsgId } : undefined
+            );
             if (sent?.key?.id) {
               processedMsgIds.add(sent.key.id);
-              if (sent.message) {
-                sentMessagesCache.set(sent.key.id, sent.message);
-              }
+              sentMessagesCache.set(sent.key.id, sent.message || { conversation: result.reply });
             }
           }
         } catch (err) {
@@ -249,6 +296,44 @@ async function startWhatsAppBot(onStateUpdate = () => {}) {
   }
 
   return waState;
+}
+
+async function repairWhatsAppSession() {
+  const baseDataDir = process.env.DATA_DIR
+    ? path.resolve(process.env.DATA_DIR)
+    : path.join(__dirname, '..', '..', 'data');
+  const authDir = path.join(baseDataDir, 'wa-auth');
+  let deletedFiles = 0;
+  if (fs.existsSync(authDir)) {
+    for (const file of fs.readdirSync(authDir)) {
+      if (file.startsWith('session-')) {
+        try {
+          fs.rmSync(path.join(authDir, file), { force: true });
+          deletedFiles++;
+        } catch {}
+      }
+    }
+  }
+  if (waSocket) {
+    waSocket.__iphonePreKeySynced = false;
+    try {
+      const targetJid = '6281335499566@s.whatsapp.net';
+      if (typeof waSocket.assertSessions === 'function') {
+        await waSocket.assertSessions([targetJid], true);
+      }
+      const repairText = '🔐 *Sesi Enkripsi iPhone Berhasil Di-reset (PreKey Handshake Baru)!*\nSekarang balasan bot akan langsung tampil di iPhone kamu tanpa _"Menunggu pesan ini"_.';
+      lastReplyText = repairText;
+      const sent = await waSocket.sendMessage(targetJid, { text: repairText });
+      if (sent?.key?.id) {
+        processedMsgIds.add(sent.key.id);
+        sentMessagesCache.set(sent.key.id, sent.message || { conversation: repairText });
+      }
+      waSocket.__iphonePreKeySynced = true;
+    } catch (err) {
+      return { ok: false, deletedFiles, error: err.message };
+    }
+  }
+  return { ok: true, deletedFiles };
 }
 
 async function logoutWhatsAppBot(onStateUpdate = () => {}) {
@@ -283,5 +368,6 @@ function getWhatsAppState() {
 module.exports = {
   startWhatsAppBot,
   logoutWhatsAppBot,
+  repairWhatsAppSession,
   getWhatsAppState,
 };

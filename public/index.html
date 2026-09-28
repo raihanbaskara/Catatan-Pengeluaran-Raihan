@@ -664,6 +664,10 @@
                 class="spring-btn flex-1 py-2.5 px-4 rounded-full text-xs font-semibold bg-white/[0.06] hover:bg-white/[0.12] text-white border border-white/[0.11]">
                 Tampilkan QR WhatsApp
               </button>
+              <button id="btnRepairWa" onclick="repairWhatsAppSessionUI()"
+                class="spring-btn py-2.5 px-4 rounded-full text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30">
+                🔐 Fix Sesi iPhone
+              </button>
               <button id="btnLogoutWa" onclick="disconnectWhatsApp()"
                 class="hidden spring-btn py-2.5 px-4 rounded-full text-xs font-medium bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30">
                 Putuskan Sesi
@@ -1374,6 +1378,19 @@
     async function disconnectWhatsApp() {
       await fetch('/api/wa/logout', { method: 'POST' });
       await fetchDashboardData();
+    }
+
+    async function repairWhatsAppSessionUI() {
+      const btn = document.getElementById('btnRepairWa');
+      const prev = btn ? btn.textContent : '';
+      if (btn) btn.textContent = 'Merestart Enkripsi iPhone...';
+      try {
+        await fetch('/api/wa/repair-session', { method: 'POST' });
+        await fetchDashboardData();
+      } finally {
+        if (btn) btn.textContent = '✅ Sesi iPhone Di-reset!';
+        setTimeout(() => { if (btn) btn.textContent = prev; }, 3000);
+      }
     }
 
     function setupRealtimeStream() {

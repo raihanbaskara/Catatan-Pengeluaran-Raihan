@@ -18,6 +18,7 @@ const {
 const {
   startWhatsAppBot,
   logoutWhatsAppBot,
+  repairWhatsAppSession,
   getWhatsAppState,
 } = require('./services/whatsappBot');
 
@@ -217,6 +218,17 @@ app.post('/api/wa/connect', async (req, res) => {
     res.json(state);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Repair iPhone E2EE Signal Session ("Menunggu pesan ini" fix without logging out)
+app.post('/api/wa/repair-session', async (req, res) => {
+  try {
+    const result = await repairWhatsAppSession();
+    broadcastStateUpdate();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
