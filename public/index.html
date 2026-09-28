@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DOMPET.AI — Liquid Glass 3-Vault WhatsApp Financial Ledger</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Outfit', 'sans-serif'],
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            obsidian: '#05070B',
+            glassDark: '#090D16',
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --spring-easing: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    body {
+      background-color: #05070B;
+      color: #F4F4F5;
+      overflow-x: hidden;
+      background-image:
+        radial-gradient(circle at 14% 12%, rgba(16, 185, 129, 0.11) 0%, transparent 42%),
+        radial-gradient(circle at 86% 18%, rgba(14, 165, 233, 0.10) 0%, transparent 40%),
+        radial-gradient(circle at 52% 88%, rgba(20, 184, 166, 0.08) 0%, transparent 48%);
+      background-attachment: fixed;
+    }
+
+    /* Fixed hardware-accelerated noise grain overlay (/stitch-design-taste & /design-taste-frontend-v1) */
+    .noise-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      pointer-events: none;
+      opacity: 0.028;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    /* Ethereal Liquid Glass Double-Bezel (Doppelrand) Architecture */
+    .glass-bezel-outer {
+      position: relative;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.015) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 2rem;
+      padding: 0.375rem;
+      box-shadow:
+        0 24px 54px -16px rgba(0, 0, 0, 0.72),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      transition: transform 0.55s var(--spring-easing), border-color 0.4s var(--spring-easing), box-shadow 0.45s var(--spring-easing);
+    }
+    .glass-bezel-outer:hover {
+      border-color: rgba(52, 211, 153, 0.26);
+      box-shadow:
+        0 28px 64px -14px rgba(0, 0, 0, 0.8),
+        0 0 36px -12px rgba(16, 185, 129, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    }
+
+    .glass-bezel-inner {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(165deg, rgba(19, 27, 43, 0.76) 0%, rgba(9, 13, 22, 0.88) 100%);
+      backdrop-filter: blur(24px) saturate(160%);
+      -webkit-backdrop-filter: blur(24px) saturate(160%);
+      border: 1px solid rgba(255, 255, 255, 0.075);
+      border-radius: calc(2rem - 0.375rem);
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.16),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    /* Interactive Cursor Refraction Spotlight */
+    .glass-bezel-inner::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(
+        560px circle at var(--mouse-x, 50%) var(--mouse-y, 0%),
+        rgba(255, 255, 255, 0.055),
+        transparent 45%
+      );
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .glass-bezel-outer:hover .glass-bezel-inner::before {
+      opacity: 1;
+    }
+
+    /* Sub-Vault Liquid Glass Cards */
+    .vault-glass-cash {
+      background: linear-gradient(155deg, rgba(16, 185, 129, 0.11) 0%, rgba(15, 23, 36, 0.65) 60%, rgba(9, 13, 22, 0.85) 100%);
+      border: 1px solid rgba(52, 211, 153, 0.25);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.16);
+      transition: transform 0.45s var(--spring-easing), border-color 0.35s ease;
+    }
+    .vault-glass-cash:hover {
+      transform: translateY(-2px);
+      border-color: rgba(52, 211, 153, 0.45);
+    }
+
+    .vault-glass-atm1 {
+      background: linear-gradient(155deg, rgba(14, 165, 233, 0.11) 0%, rgba(15, 23, 36, 0.65) 60%, rgba(9, 13, 22, 0.85) 100%);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.16);
+      transition: transform 0.45s var(--spring-easing), border-color 0.35s ease;
+    }
+    .vault-glass-atm1:hover {
+      transform: translateY(-2px);
+      border-color: rgba(56, 189, 248, 0.45);
+    }
+
+    .vault-glass-atm2 {
+      background: linear-gradient(155deg, rgba(45, 212, 191, 0.11) 0%, rgba(15, 23, 36, 0.65) 60%, rgba(9, 13, 22, 0.85) 100%);
+      border: 1px solid rgba(45, 212, 191, 0.25);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.16);
+      transition: transform 0.45s var(--spring-easing), border-color 0.35s ease;
+    }
+    .vault-glass-atm2:hover {
+      transform: translateY(-2px);
+      border-color: rgba(45, 212, 191, 0.45);
+    }
+
+    .spring-btn {
+      transition: transform 0.45s var(--spring-easing), background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .spring-btn:active {
+      transform: scale(0.97) translateY(1px);
+    }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    @keyframes valuePulse {
+      0% { transform: scale(1); }
+      35% { transform: scale(1.03); color: #34D399; }
+      100% { transform: scale(1); }
+    }
+    .metric-flash {
+      animation: valuePulse 0.65s var(--spring-easing);
+    }
+
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .stagger-1 { animation: fadeSlideUp 0.65s var(--spring-easing) 0.05s both; }
+    .stagger-2 { animation: fadeSlideUp 0.65s var(--spring-easing) 0.12s both; }
+    .stagger-3 { animation: fadeSlideUp 0.65s var(--spring-easing) 0.20s both; }
+    .stagger-4 { animation: fadeSlideUp 0.65s var(--spring-easing) 0.28s both; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #05070B; }
+    ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 9999px; }
+  </style>
+</head>
+<body class="min-h-[100dvh] font-sans antialiased selection:bg-emerald-400 selection:text-zinc-950">
+  <div class="noise-overlay"></div>
+
+  <!-- Ambient Liquid Glass Mesh Refraction Orbs -->
+  <div class="fixed top-[-14%] left-[8%] w-[540px] h-[540px] rounded-full bg-emerald-500/[0.07] blur-[140px] pointer-events-none"></div>
+  <div class="fixed top-[20%] right-[-10%] w-[480px] h-[480px] rounded-full bg-sky-500/[0.06] blur-[140px] pointer-events-none"></div>
+  <div class="fixed bottom-[-18%] left-[36%] w-[520px] h-[520px] rounded-full bg-teal-500/[0.055] blur-[145px] pointer-events-none"></div>
+
+  <!-- DETACHED FLOATING LIQUID GLASS ISLAND NAVBAR -->
+  <div class="sticky top-4 z-30 px-4 sm:px-6">
+    <header class="max-w-[1420px] mx-auto rounded-full bg-[#090D16]/75 backdrop-blur-2xl border border-white/[0.11] shadow-[0_20px_50px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.18)] px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400/20 to-sky-400/10 border border-emerald-400/35 flex items-center justify-center text-emerald-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)]">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="5" width="20" height="14" rx="3" />
+            <line x1="2" y1="10" x2="22" y2="10" />
+            <path d="M6 15h4" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2.5">
+            <span class="font-display font-extrabold text-base sm:text-lg tracking-tight text-white">DOMPET.AI</span>
+            <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] uppercase tracking-[0.18em] font-mono font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-400/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              3-Vault Liquid Glass
+            </span>
+          </div>
+          <p class="text-[11px] text-zinc-400 hidden md:block">Autonomous WhatsApp Ledger • Tunai + ATM 1 (Simpanan) + ATM 2 (Jajan)</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <button onclick="openTransferModal()"
+          class="group spring-btn hidden sm:inline-flex items-center gap-2 rounded-full pl-4 pr-1.5 py-1.5 text-xs font-medium bg-sky-500/10 hover:bg-sky-500/20 text-sky-200 border border-sky-400/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+          <span>Alokasi ATM 1 → ATM 2</span>
+          <span class="w-7 h-7 rounded-full bg-sky-400/15 flex items-center justify-center transition-transform duration-500 group-hover:translate-x-0.5">
+            <svg class="w-3.5 h-3.5 text-sky-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14"></path>
+              <path d="m12 5 7 7-7 7"></path>
+            </svg>
+          </span>
+        </button>
+
+        <button onclick="openModal('scriptModal')"
+          class="group spring-btn inline-flex items-center gap-2.5 rounded-full pl-4 pr-1.5 py-1.5 text-xs font-semibold bg-emerald-400 text-zinc-950 hover:bg-emerald-300 shadow-[0_0_25px_rgba(16,185,129,0.3)]">
+          <span>Patch Sheet (Anti-Reset)</span>
+          <span class="w-7 h-7 rounded-full bg-zinc-950/15 flex items-center justify-center transition-transform duration-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="7" y1="17" x2="17" y2="7"></line>
+              <polyline points="7 7 17 7 17 17"></polyline>
+            </svg>
+          </span>
+        </button>
+
+        <a href="https://docs.google.com/spreadsheets/d/1_UvnRmnVZzxfzNp-mASlWtrpuqShcDD8ei8NuHK3YkM/edit?usp=sharing" target="_blank" rel="noopener noreferrer"
+          class="group spring-btn inline-flex items-center gap-2 rounded-full pl-4 pr-1.5 py-1.5 text-xs font-medium bg-white/[0.045] hover:bg-white/[0.09] text-zinc-200 border border-white/[0.1] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+          <span class="hidden lg:inline">Buka Spreadsheet</span>
+          <span class="w-7 h-7 rounded-full bg-white/[0.07] flex items-center justify-center transition-transform duration-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
+            <svg class="w-3.5 h-3.5 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="8" y1="13" x2="16" y2="13"></line>
+              <line x1="8" y1="17" x2="16" y2="17"></line>
+            </svg>
+          </span>
+        </a>
+
+        <button onclick="openModal('settingsModal')"
+          class="spring-btn w-10 h-10 rounded-full bg-white/[0.045] hover:bg-white/[0.09] border border-white/[0.1] flex items-center justify-center text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
+          title="Konfigurasi OpenRouter & Spreadsheet">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+  </div>
+
+  <!-- MAIN ASYMMETRIC BENTO WORKSPACE -->
+  <main class="max-w-[1420px] mx-auto px-4 sm:px-6 pt-6 pb-24 space-y-6">
+
+    <!-- EDITORIAL HEADER + NON-DESTRUCTIVE PATCH BANNER (/gpt-taste wide typography with inline pills) -->
+    <div class="glass-bezel-outer stagger-1">
+      <div class="glass-bezel-inner px-6 py-5 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5">
+        <div class="space-y-1.5 max-w-4xl">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="rounded-full px-3 py-0.5 text-[10px] uppercase tracking-[0.2em] font-mono font-semibold bg-emerald-400/15 text-emerald-300 border border-emerald-400/30">
+              Anti-Reset Shield Active
+            </span>
+            <span class="rounded-full px-3 py-0.5 text-[10px] uppercase tracking-[0.2em] font-mono font-semibold bg-sky-400/15 text-sky-300 border border-sky-400/30">
+              Signal Retry Cache Active
+            </span>
+          </div>
+          <h1 class="font-display font-bold text-lg sm:text-xl tracking-tight text-white flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>Arsitektur 3 Dompet Otomatis:</span>
+            <span class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-400/30">Uang Tunai</span>
+            <span class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-mono bg-sky-500/15 text-sky-300 border border-sky-400/30">ATM 1 (Simpanan)</span>
+            <span class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-mono bg-teal-500/15 text-teal-200 border border-teal-400/30">ATM 2 (Jajan / QRIS)</span>
+          </h1>
+          <p class="text-xs text-zinc-300/90 leading-relaxed">
+            Gaji/pemasukan otomatis masuk ke <strong class="text-sky-300">ATM 1 (Simpanan)</strong>. Pengeluaran QRIS/Transfer otomatis memotong <strong class="text-teal-300">ATM 2 (Jajan)</strong> agar tabungan utama tetap aman, dan belanja tanpa keterangan memotong <strong class="text-emerald-300">Uang Tunai</strong>.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5 shrink-0 w-full xl:w-auto">
+          <button onclick="copyFixedScriptDirect()" id="btnQuickCopyScript"
+            class="spring-btn flex-1 xl:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-xs font-semibold bg-emerald-400 hover:bg-emerald-300 text-zinc-950 shadow-[0_0_24px_rgba(16,185,129,0.28)]">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span>Copy Script Patch (Tanpa Reset)</span>
+          </button>
+          <button onclick="triggerFullSheetSync()" id="btnForceSync"
+            class="spring-btn px-4 py-2.5 rounded-full text-xs font-medium bg-white/[0.055] hover:bg-white/[0.11] text-zinc-100 border border-white/[0.12]">
+            Sync ke Spreadsheet
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ASYMMETRIC 12-COLUMN LIQUID GLASS BENTO GRID -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 grid-flow-dense">
+
+      <!-- LEFT 7 COLUMNS: 3-VAULT TREASURY + REALTIME AUDIT LEDGER -->
+      <div class="lg:col-span-7 space-y-6">
+
+        <!-- 1. SOVEREIGN 3-VAULT LIQUID GLASS TREASURY -->
+        <div id="cardTotal" class="glass-bezel-outer stagger-2">
+          <div class="glass-bezel-inner p-6 sm:p-7 space-y-6">
+
+            <!-- Top Row: Consolidated Net Worth + Today's Spend + Quick Actions -->
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-5 border-b border-white/[0.08]">
+              <div>
+                <div class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] font-mono text-zinc-300 bg-white/[0.04] border border-white/[0.09] mb-2.5">
+                  <span>Consolidated Net Worth</span>
+                  <span class="text-emerald-300">• 3 VAULTS</span>
+                </div>
+                <h2 id="totalBalanceDisplay" class="font-display font-extrabold text-3xl sm:text-5xl tracking-tight text-white tabular-nums">
+                  Rp 0
+                </h2>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="px-3.5 py-2 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-right">
+                  <span class="block text-[10px] uppercase tracking-wider text-zinc-400">Pengeluaran Hari Ini</span>
+                  <span id="todayExpenseDisplay" class="font-mono font-bold text-sm text-rose-400 tabular-nums">Rp 0</span>
+                </div>
+
+                <button onclick="openTransferModal()"
+                  class="spring-btn px-3.5 py-2.5 rounded-2xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-200 border border-sky-400/30 text-xs font-medium flex items-center gap-1.5"
+                  title="Pindahkan Saldo Antar Dompet (Misal: ATM 1 ke ATM 2)">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 3v18"></path>
+                    <path d="m10 18 7 3 7-3"></path>
+                    <path d="M7 21V3"></path>
+                    <path d="M14 6 7 3 0 6"></path>
+                  </svg>
+                  <span>Alokasi Saldo</span>
+                </button>
+
+                <button onclick="sendQuickCommand('undo')"
+                  class="spring-btn px-3.5 py-2.5 rounded-2xl bg-white/[0.045] hover:bg-rose-500/15 text-zinc-300 hover:text-rose-300 border border-white/[0.09] hover:border-rose-500/30 text-xs font-medium flex items-center gap-1.5"
+                  title="Batalkan Transaksi Terakhir">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 7v6h6"></path>
+                    <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
+                  </svg>
+                  <span>Undo</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 3-Way Liquid Proportion Bar (Tunai vs ATM 1 Simpanan vs ATM 2 Jajan) -->
+            <div class="space-y-2">
+              <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+                <span id="cashRatioLabel" class="text-emerald-300">TUNAI: 0%</span>
+                <span id="atm1RatioLabel" class="text-sky-300">ATM 1 (SIMPANAN): 0%</span>
+                <span id="atm2RatioLabel" class="text-teal-300">ATM 2 (JAJAN/QRIS): 0%</span>
+              </div>
+              <div class="w-full h-2.5 rounded-full bg-zinc-950/90 overflow-hidden flex p-0.5 gap-1 border border-white/[0.08]">
+                <div id="cashRatioBar" class="h-full bg-emerald-400 rounded-full transition-all duration-700" style="width: 33%"></div>
+                <div id="atm1RatioBar" class="h-full bg-sky-400 rounded-full transition-all duration-700" style="width: 34%"></div>
+                <div id="atm2RatioBar" class="h-full bg-teal-400 rounded-full transition-all duration-700" style="width: 33%"></div>
+              </div>
+            </div>
+
+            <!-- 3-VAULT GLASS CARDS GRID -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+              <!-- Vault 1: Saldo Uang Tunai (CASH) -->
+              <div id="cardCash" class="vault-glass-cash rounded-2xl p-4 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                      <div class="w-8 h-8 rounded-xl bg-emerald-400/15 border border-emerald-400/35 flex items-center justify-center text-emerald-300">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                          <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                          <circle cx="12" cy="12" r="2"></circle>
+                          <path d="M6 12h.01M18 12h.01"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <span class="block text-[9px] font-mono uppercase tracking-[0.16em] text-emerald-300">Dompet Fisik</span>
+                        <h3 class="font-display font-bold text-sm text-white">Uang Tunai</h3>
+                      </div>
+                    </div>
+                    <button onclick="openBalanceModal('CASH')"
+                      class="spring-btn text-[10px] font-mono px-2.5 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.14] text-zinc-200 border border-white/[0.1]">
+                      Set
+                    </button>
+                  </div>
+
+                  <div class="mt-4">
+                    <p id="cashBalanceDisplay" class="font-mono font-bold text-xl xl:text-2xl text-white tabular-nums tracking-tight">
+                      Rp 0
+                    </p>
+                    <p class="text-[11px] text-zinc-300/80 mt-1 leading-snug">
+                      Default saat chat <span class="text-emerald-300 font-mono">"beli bensin 20rb"</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-white/[0.08] flex items-center justify-between text-[10px] font-mono">
+                  <div>
+                    <span class="text-zinc-400 block">MASUK</span>
+                    <span id="cashIncomeDisplay" class="text-emerald-300 font-semibold tabular-nums">+Rp 0</span>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-zinc-400 block">KELUAR</span>
+                    <span id="cashExpenseDisplay" class="text-rose-400 font-semibold tabular-nums">-Rp 0</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Vault 2: Saldo ATM 1 (Simpanan Utama) -->
+              <div id="cardAtm1" class="vault-glass-atm1 rounded-2xl p-4 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                      <div class="w-8 h-8 rounded-xl bg-sky-400/15 border border-sky-400/35 flex items-center justify-center text-sky-300">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M3 21h18"></path>
+                          <path d="M3 10h18"></path>
+                          <path d="M5 6l7-3 7 3"></path>
+                          <path d="M4 10v11"></path>
+                          <path d="M20 10v11"></path>
+                          <path d="M8 14v3"></path>
+                          <path d="M12 14v3"></path>
+                          <path d="M16 14v3"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <span class="block text-[9px] font-mono uppercase tracking-[0.16em] text-sky-300">Tabungan Utama</span>
+                        <h3 class="font-display font-bold text-sm text-white">Saldo ATM 1</h3>
+                      </div>
+                    </div>
+                    <button onclick="openBalanceModal('ATM')"
+                      class="spring-btn text-[10px] font-mono px-2.5 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.14] text-zinc-200 border border-white/[0.1]">
+                      Set
+                    </button>
+                  </div>
+
+                  <div class="mt-4">
+                    <p id="atm1BalanceDisplay" class="font-mono font-bold text-xl xl:text-2xl text-white tabular-nums tracking-tight">
+                      Rp 0
+                    </p>
+                    <p class="text-[11px] text-zinc-300/80 mt-1 leading-snug">
+                      Penerima <span class="text-sky-300 font-mono">"gaji / uang masuk"</span> & simpanan aman
+                    </p>
+                  </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-white/[0.08] flex items-center justify-between text-[10px] font-mono">
+                  <div>
+                    <span class="text-zinc-400 block">MASUK</span>
+                    <span id="atm1IncomeDisplay" class="text-sky-300 font-semibold tabular-nums">+Rp 0</span>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-zinc-400 block">KELUAR</span>
+                    <span id="atm1ExpenseDisplay" class="text-rose-400 font-semibold tabular-nums">-Rp 0</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Vault 3: Saldo ATM 2 (Dompet Jajan & QRIS) -->
+              <div id="cardAtm2" class="vault-glass-atm2 rounded-2xl p-4 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                      <div class="w-8 h-8 rounded-xl bg-teal-400/15 border border-teal-400/35 flex items-center justify-center text-teal-300">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                          <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                          <line x1="2" y1="10" x2="22" y2="10"></line>
+                        </svg>
+                      </div>
+                      <div>
+                        <span class="block text-[9px] font-mono uppercase tracking-[0.16em] text-teal-300">Dompet Jajan / QRIS</span>
+                        <h3 class="font-display font-bold text-sm text-white">Saldo ATM 2</h3>
+                      </div>
+                    </div>
+                    <button onclick="openBalanceModal('ATM2')"
+                      class="spring-btn text-[10px] font-mono px-2.5 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.14] text-zinc-200 border border-white/[0.1]">
+                      Set
+                    </button>
+                  </div>
+
+                  <div class="mt-4">
+                    <p id="atm2BalanceDisplay" class="font-mono font-bold text-xl xl:text-2xl text-white tabular-nums tracking-tight">
+                      Rp 0
+                    </p>
+                    <p class="text-[11px] text-zinc-300/80 mt-1 leading-snug">
+                      Default <span class="text-teal-300 font-mono">qris / tf / debit</span> & tarik tunai
+                    </p>
+                  </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-white/[0.08] flex items-center justify-between text-[10px] font-mono">
+                  <div>
+                    <span class="text-zinc-400 block">MASUK</span>
+                    <span id="atm2IncomeDisplay" class="text-teal-300 font-semibold tabular-nums">+Rp 0</span>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-zinc-400 block">KELUAR</span>
+                    <span id="atm2ExpenseDisplay" class="text-rose-400 font-semibold tabular-nums">-Rp 0</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. HIGH-DENSITY 3-VAULT FINANCIAL AUDIT LEDGER -->
+        <div class="glass-bezel-outer stagger-3">
+          <div class="glass-bezel-inner p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.08]">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="font-display font-bold text-base text-white">Ledger Mutasi & Sisa Saldo 3 Dompet</h3>
+                  <span id="txCountBadge" class="font-mono text-[11px] px-2.5 py-0.5 rounded-full bg-white/[0.06] text-zinc-200 border border-white/[0.1]">0</span>
+                </div>
+                <p class="text-xs text-zinc-400 mt-0.5">Rekam jejak presisi untuk Tunai, ATM 1 (Simpanan), dan ATM 2 (Jajan)</p>
+              </div>
+
+              <!-- 4-Way Glass Filter Pills -->
+              <div class="inline-flex flex-wrap items-center p-1 rounded-full bg-zinc-950/90 border border-white/[0.09] text-xs gap-0.5">
+                <button onclick="setWalletFilter('ALL')" id="filterALL" class="px-3 py-1 rounded-full font-medium bg-emerald-400 text-zinc-950 transition">
+                  Semua
+                </button>
+                <button onclick="setWalletFilter('CASH')" id="filterCASH" class="px-3 py-1 rounded-full font-medium text-zinc-400 hover:text-white transition">
+                  Tunai
+                </button>
+                <button onclick="setWalletFilter('ATM')" id="filterATM" class="px-3 py-1 rounded-full font-medium text-zinc-400 hover:text-white transition">
+                  ATM 1
+                </button>
+                <button onclick="setWalletFilter('ATM2')" id="filterATM2" class="px-3 py-1 rounded-full font-medium text-zinc-400 hover:text-white transition">
+                  ATM 2
+                </button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto mt-2">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-white/[0.08] text-[10px] font-mono uppercase tracking-[0.14em] text-zinc-400">
+                    <th class="py-3.5 px-2">ID / Waktu</th>
+                    <th class="py-3.5 px-2">Deskripsi & Kategori</th>
+                    <th class="py-3.5 px-2">Dompet</th>
+                    <th class="py-3.5 px-2 text-right">Nominal</th>
+                    <th class="py-3.5 px-2 text-right">Sisa Tunai</th>
+                    <th class="py-3.5 px-2 text-right">Sisa ATM 1</th>
+                    <th class="py-3.5 px-2 text-right">Sisa ATM 2</th>
+                  </tr>
+                </thead>
+                <tbody id="txTableBody" class="divide-y divide-white/[0.05] text-xs"></tbody>
+              </table>
+            </div>
+
+            <!-- Category Allocation Breakdown -->
+            <div class="mt-6 pt-5 border-t border-white/[0.08]">
+              <span class="block text-[10px] font-mono uppercase tracking-[0.18em] text-zinc-400 mb-3">Distribusi Pengeluaran per Kategori (Tunai vs ATM 1 vs ATM 2)</span>
+              <div id="categoryContainer" class="space-y-2.5"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT 5 COLUMNS: WHATSAPP AI CONSOLE + DEVICE PAIRING -->
+      <div class="lg:col-span-5 space-y-6">
+
+        <!-- 1. WHATSAPP AI NATURAL LANGUAGE TERMINAL -->
+        <div class="glass-bezel-outer stagger-3">
+          <div class="glass-bezel-inner overflow-hidden flex flex-col">
+            <div class="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-emerald-400/15 border border-emerald-400/35 flex items-center justify-center text-emerald-300">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="font-display font-bold text-sm text-white">WhatsApp AI Financial Console</h3>
+                  <p class="text-[11px] text-zinc-400">Smart 3-Vault Routing • Simulasi & Eksekusi Langsung</p>
+                </div>
+              </div>
+              <span class="font-mono text-[10px] px-2.5 py-1 rounded-full bg-emerald-400/15 text-emerald-300 border border-emerald-400/25">
+                3-Vault NLP Ready
+              </span>
+            </div>
+
+            <!-- Message Stream -->
+            <div id="chatContainer" class="p-4 h-[340px] overflow-y-auto space-y-3 text-xs bg-[#060911]/90">
+              <div class="bg-white/[0.04] text-zinc-200 rounded-2xl rounded-tl-sm p-3.5 max-w-[92%] border border-white/[0.09] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
+                <p class="font-mono text-[10px] uppercase tracking-wider text-emerald-300 mb-1.5">Smart 3-Vault Routing Ready</p>
+                <p class="leading-relaxed text-zinc-300">Ketik natural seperti saat kamu chat ke nomor bot WhatsApp:</p>
+                <div class="mt-2.5 space-y-1.5 font-mono text-[11px] text-zinc-300">
+                  <div>• <span class="text-sky-300">"gaji masuk 3 juta"</span> → Masuk <strong>ATM 1 (Simpanan)</strong></div>
+                  <div>• <span class="text-teal-300">"isi atm 2 500 ribu"</span> → Geser <strong>ATM 1 → ATM 2 (Jajan)</strong></div>
+                  <div>• <span class="text-teal-300">"beli kopi 18rb pakai qris"</span> → Potong <strong>ATM 2 (Jajan)</strong></div>
+                  <div>• <span class="text-emerald-300">"beli bensin 20 ribu"</span> → Potong <strong>Uang Tunai</strong></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tactile Preset Chips -->
+            <div class="px-4 py-2.5 bg-[#080C15] border-t border-white/[0.06] flex items-center gap-1.5 overflow-x-auto">
+              <button onclick="fillAndSend('isi atm 2 500 ribu')"
+                class="spring-btn shrink-0 font-mono text-[11px] px-3 py-1 rounded-full bg-sky-500/15 hover:bg-sky-500/25 text-sky-200 border border-sky-400/30">
+                isi atm 2 500 ribu
+              </button>
+              <button onclick="fillAndSend('beli kopi 18rb pakai qris')"
+                class="spring-btn shrink-0 font-mono text-[11px] px-3 py-1 rounded-full bg-teal-500/15 hover:bg-teal-500/25 text-teal-200 border border-teal-400/30">
+                beli kopi 18rb pakai qris
+              </button>
+              <button onclick="fillAndSend('beli seblak 15 ribu')"
+                class="spring-btn shrink-0 font-mono text-[11px] px-3 py-1 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-200 border border-emerald-400/30">
+                beli seblak 15 ribu
+              </button>
+              <button onclick="fillAndSend('cek saldo')"
+                class="spring-btn shrink-0 font-mono text-[11px] px-3 py-1 rounded-full bg-white/[0.05] hover:bg-white/[0.11] text-zinc-200 border border-white/[0.1]">
+                cek saldo
+              </button>
+            </div>
+
+            <!-- Input Bar -->
+            <form onsubmit="handleChatSubmit(event)" class="p-3 bg-[#090D16] border-t border-white/[0.08] flex items-center gap-2">
+              <input id="chatInput" type="text" placeholder="Ketik transaksi: beli kopi 18rb pakai qris / isi atm 2 500rb..." required
+                class="flex-1 bg-zinc-950/90 border border-white/[0.1] focus:border-emerald-400/70 rounded-full px-4 py-2.5 text-xs text-white placeholder-zinc-500 outline-none transition" />
+              <button type="submit" id="chatSubmitBtn"
+                class="spring-btn px-5 py-2.5 rounded-full bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-semibold text-xs shrink-0">
+                Kirim
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- 2. WHATSAPP DEVICE BRIDGE & ENCRYPTION MONITOR -->
+        <div class="glass-bezel-outer stagger-4">
+          <div class="glass-bezel-inner p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-white/[0.05] border border-white/[0.1] flex items-center justify-center text-emerald-300">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="font-display font-bold text-sm text-white">WhatsApp Device Bridge (Anti-Grup)</h3>
+                  <p id="waStatusText" class="text-[11px] text-zinc-400">Dilengkapi Signal Retry Cache (Bebas "Menunggu pesan ini")</p>
+                </div>
+              </div>
+              <span id="waStatusPill" class="font-mono text-[10px] px-2.5 py-1 rounded-full bg-white/[0.05] text-zinc-300 border border-white/[0.1]">
+                Standby
+              </span>
+            </div>
+
+            <div id="waQrBox" class="hidden flex-col items-center justify-center p-4 rounded-2xl bg-white text-zinc-950 space-y-2">
+              <img id="waQrImage" src="" alt="Scan QR WhatsApp" class="w-48 h-48 object-contain" />
+              <p class="text-[11px] font-medium text-center text-zinc-700">
+                Buka WhatsApp di HP → Perangkat Tertaut → Tautkan Perangkat
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button id="btnConnectWa" onclick="connectWhatsApp()"
+                class="spring-btn flex-1 py-2.5 px-4 rounded-full text-xs font-semibold bg-white/[0.06] hover:bg-white/[0.12] text-white border border-white/[0.11]">
+                Tampilkan QR WhatsApp
+              </button>
+              <button id="btnLogoutWa" onclick="disconnectWhatsApp()"
+                class="hidden spring-btn py-2.5 px-4 rounded-full text-xs font-medium bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30">
+                Putuskan Sesi
+              </button>
+            </div>
+
+            <!-- Fonnte Gateway Option -->
+            <div class="pt-3.5 border-t border-white/[0.07] space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="font-mono text-[10px] uppercase tracking-[0.16em] text-emerald-300">Opsi Gateway: Fonnte API (Personal Whitelist)</span>
+                <a href="https://md.fonnte.com/new/device.php" target="_blank" rel="noopener noreferrer"
+                  class="text-[11px] text-zinc-400 hover:text-emerald-300 underline">Dashboard Fonnte ↗</a>
+              </div>
+              <div class="flex gap-2">
+                <input id="inputFonnteToken" type="password" placeholder="Tempel Device Token Fonnte di sini..."
+                  class="flex-1 bg-zinc-950/90 border border-white/[0.1] focus:border-emerald-400/60 rounded-full px-3.5 py-2 text-xs text-white font-mono outline-none" />
+                <button onclick="saveFonnteToken()" id="btnSaveFonnte"
+                  class="spring-btn px-4 py-2 rounded-full text-xs font-semibold bg-emerald-400 hover:bg-emerald-300 text-zinc-950 shrink-0">
+                  Aktifkan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL 1: SET SALDO DOMPET (TUNAI / ATM 1 / ATM 2) -->
+  <div id="balanceModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-md p-4">
+    <div class="glass-bezel-outer max-w-md w-full">
+      <div class="glass-bezel-inner p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+          <div>
+            <span id="balanceModalBadge" class="font-mono text-[10px] uppercase tracking-widest text-emerald-300">Vault Calibration</span>
+            <h3 id="balanceModalTitle" class="font-display font-bold text-base text-white mt-0.5">Atur Saldo Dompet</h3>
+          </div>
+          <button onclick="closeModal('balanceModal')" class="text-zinc-400 hover:text-white text-xs font-mono px-2.5 py-1 rounded-full bg-white/[0.05]">ESC</button>
+        </div>
+
+        <form onsubmit="submitBalanceAdjust(event)" class="space-y-4 text-xs">
+          <input type="hidden" id="balanceModalWalletId" value="CASH" />
+          <div>
+            <label class="block text-zinc-300 mb-1.5">Nominal Saldo Baru (Rp)</label>
+            <input id="balanceModalInput" type="number" step="any" required placeholder="Contoh: 1500000"
+              class="w-full bg-zinc-950 border border-white/[0.12] focus:border-emerald-400 rounded-2xl px-4 py-3 text-base font-mono font-bold text-white outline-none tabular-nums" />
+            <p class="text-[11px] text-zinc-400 mt-1.5">Perubahan langsung tersinkron ke database & Google Spreadsheet tanpa mereset tabel.</p>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" onclick="closeModal('balanceModal')" class="px-4 py-2 rounded-full bg-white/[0.06] text-zinc-300">Batal</button>
+            <button type="submit" class="spring-btn px-5 py-2 rounded-full bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-semibold">Simpan Saldo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: ALOKASI / TRANSFER ANTAR DOMPET (MISAL ATM 1 -> ATM 2) -->
+  <div id="transferModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-md p-4">
+    <div class="glass-bezel-outer max-w-md w-full">
+      <div class="glass-bezel-inner p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+          <div>
+            <span class="font-mono text-[10px] uppercase tracking-widest text-sky-300">Inter-Vault Transfer</span>
+            <h3 class="font-display font-bold text-base text-white mt-0.5">Alokasi Saldo Antar Dompet</h3>
+          </div>
+          <button onclick="closeModal('transferModal')" class="text-zinc-400 hover:text-white text-xs font-mono px-2.5 py-1 rounded-full bg-white/[0.05]">ESC</button>
+        </div>
+
+        <form onsubmit="submitInterWalletTransfer(event)" class="space-y-3.5 text-xs">
+          <div>
+            <label class="block text-zinc-300 mb-1">Rute Pemindahan</label>
+            <select id="transferDirection" class="w-full bg-zinc-950 border border-white/[0.12] rounded-xl px-3.5 py-2.5 text-white font-mono">
+              <option value="isi atm 2">ATM 1 (Simpanan) → ATM 2 (Jajan / QRIS)</option>
+              <option value="pindah ke atm 1">ATM 2 (Jajan) → ATM 1 (Simpanan)</option>
+              <option value="tarik tunai">ATM 2 (Jajan) → Uang Tunai (Tarik Tunai)</option>
+              <option value="tarik tunai dari atm 1">ATM 1 (Simpanan) → Uang Tunai</option>
+              <option value="setor tunai ke atm 1">Uang Tunai → ATM 1 (Simpanan)</option>
+              <option value="setor tunai ke atm 2">Uang Tunai → ATM 2 (Jajan)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-zinc-300 mb-1">Nominal Alokasi (Rp)</label>
+            <input id="transferAmountInput" type="number" required placeholder="Contoh: 500000"
+              class="w-full bg-zinc-950 border border-white/[0.12] focus:border-sky-400 rounded-xl px-3.5 py-2.5 text-sm font-mono font-bold text-white outline-none tabular-nums" />
+          </div>
+
+          <p class="text-[11px] text-zinc-400 leading-relaxed">
+            Alokasi antar dompet dicatat sebagai mutasi <code class="text-sky-300 font-mono">TRANSFER</code> sehingga tidak dihitung sebagai pengeluaran/boros.
+          </p>
+
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" onclick="closeModal('transferModal')" class="px-4 py-2 rounded-full bg-white/[0.06] text-zinc-300">Batal</button>
+            <button type="submit" class="spring-btn px-5 py-2 rounded-full bg-sky-400 hover:bg-sky-300 text-zinc-950 font-semibold">Eksekusi Transfer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: GOOGLE APPS SCRIPT (NON-DESTRUCTIVE PATCH) -->
+  <div id="scriptModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-md p-4">
+    <div class="glass-bezel-outer max-w-3xl w-full">
+      <div class="glass-bezel-inner p-6 space-y-4 max-h-[88vh] flex flex-col">
+        <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+          <div>
+            <h3 class="font-display font-bold text-base text-white">Google Apps Script (100% Anti-Reset + ATM 1 & ATM 2 + Filter Bulan)</h3>
+            <p class="text-xs text-zinc-400">Spreadsheet ID: <code class="font-mono text-emerald-300">1_UvnRmnVZzxfzNp-mASlWtrpuqShcDD8ei8NuHK3YkM</code></p>
+          </div>
+          <button onclick="closeModal('scriptModal')" class="text-zinc-400 hover:text-white text-sm font-mono px-2 py-1">ESC</button>
+        </div>
+
+        <div class="space-y-3 overflow-y-auto pr-1 text-xs text-zinc-300">
+          <div class="rounded-2xl bg-emerald-500/10 border border-emerald-400/25 p-4 space-y-1.5">
+            <p class="font-semibold text-emerald-300">Keamanan Penuh (Data & Kategori Tidak Akan Ter-Reset):</p>
+            <ul class="list-disc list-inside space-y-1 text-zinc-200">
+              <li>Fungsi <code class="font-mono text-emerald-300">updateDropdownDanAtmTanpaReset()</code> hanya memperbarui kartu <strong>ATM 1 (Simpanan)</strong>, <strong>ATM 2 (Jajan)</strong>, dan <strong>Dropdown Filter Bulan (Semua Bulan / Jan-Des)</strong>.</li>
+              <li>Seluruh kategori, jadwal, maupun angka yang sudah kamu edit manual di Spreadsheet dijamin <strong>100% utuh</strong>.</li>
+            </ul>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-[11px] text-zinc-400">Code.gs (Non-Destructive Patch Ready):</span>
+            <button onclick="copyAppsScriptCode()" id="btnCopyScript"
+              class="spring-btn px-4 py-1.5 rounded-full bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-semibold text-xs">
+              Copy Kode Script
+            </button>
+          </div>
+
+          <textarea id="appsScriptCodeArea" readonly rows="9"
+            class="w-full font-mono text-[11px] bg-zinc-950 text-emerald-300 p-3.5 rounded-2xl border border-white/[0.1] focus:outline-none"></textarea>
+
+          <div class="pt-2 space-y-2">
+            <label class="block font-medium text-white">URL Web App Google Apps Script (Auto-Sync Setiap Chat WA):</label>
+            <div class="flex gap-2">
+              <input id="inputWebhookUrl" type="url" placeholder="https://script.google.com/macros/s/......./exec"
+                class="flex-1 bg-zinc-950 border border-white/[0.12] rounded-full px-4 py-2.5 text-xs text-white focus:border-emerald-400 outline-none font-mono" />
+              <button onclick="saveWebhookAndSync()"
+                class="spring-btn px-5 py-2.5 rounded-full bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-semibold text-xs shrink-0">
+                Simpan & Sync
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: PENGATURAN OPENROUTER & WHITELIST -->
+  <div id="settingsModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-md p-4">
+    <div class="glass-bezel-outer max-w-lg w-full">
+      <div class="glass-bezel-inner p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+          <h3 class="font-display font-bold text-base text-white">Konfigurasi OpenRouter AI & Spreadsheet</h3>
+          <button onclick="closeModal('settingsModal')" class="text-zinc-400 hover:text-white text-sm font-mono px-2 py-1">ESC</button>
+        </div>
+
+        <form onsubmit="saveAllSettings(event)" class="space-y-3.5 text-xs">
+          <div>
+            <label class="block font-medium text-zinc-300 mb-1">Google Spreadsheet ID</label>
+            <input id="setSpreadsheetId" type="text"
+              class="w-full bg-zinc-950 border border-white/[0.1] rounded-xl px-3.5 py-2.5 text-white font-mono" />
+          </div>
+
+          <div>
+            <label class="block font-medium text-zinc-300 mb-1">URL Web App Google Apps Script</label>
+            <input id="setAppsScriptUrl" type="text" placeholder="https://script.google.com/macros/s/.../exec"
+              class="w-full bg-zinc-950 border border-white/[0.1] rounded-xl px-3.5 py-2.5 text-white font-mono" />
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-medium text-zinc-300 mb-1">AI Provider Gateway</label>
+              <select id="setAiBaseUrl" class="w-full bg-zinc-950 border border-white/[0.1] rounded-xl px-3.5 py-2.5 text-white">
+                <option value="https://openrouter.ai/api/v1">OpenRouter API</option>
+                <option value="https://api.groq.com/openai/v1">Groq Cloud API</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-medium text-zinc-300 mb-1">AI Model</label>
+              <input id="setAiModel" type="text"
+                class="w-full bg-zinc-950 border border-white/[0.1] rounded-xl px-3.5 py-2.5 text-white font-mono" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-medium text-zinc-300 mb-1">OpenRouter API Key (Aktif)</label>
+            <input id="setAiApiKey" type="password"
+              class="w-full bg-zinc-950 border border-white/[0.1] rounded-xl px-3.5 py-2.5 text-white font-mono" />
+          </div>
+
+          <div>
+            <label class="block font-medium text-zinc-300 mb-1">Whitelist Nomor WhatsApp Pribadi</label>
+            <input id="setWaWhitelist" type="text" placeholder="6281335499566"
+              class="w-full bg-zinc-950 border border-white/[0.1] rounded-xl px-3.5 py-2.5 text-white font-mono" />
+          </div>
+
+          <div class="pt-3 flex justify-end gap-2">
+            <button type="button" onclick="closeModal('settingsModal')" class="px-4 py-2 rounded-full bg-white/[0.06] text-zinc-300">Tutup</button>
+            <button type="submit" class="spring-btn px-5 py-2 rounded-full bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-semibold">Simpan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentState = {
+      wallets: null,
+      transactions: [],
+      categories: [],
+      settings: {},
+      walletFilter: 'ALL',
+      appsScriptTemplate: ''
+    };
+
+    // Interactive Liquid Glass Cursor Refraction Spotlight
+    document.addEventListener('mousemove', (e) => {
+      document.querySelectorAll('.glass-bezel-inner').forEach((card) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        card.style.setProperty('--mouse-x', `${x}px`);
+        card.style.setProperty('--mouse-y', `${y}px`);
+      });
+    });
+
+    function formatRp(num) {
+      const n = Number(num) || 0;
+      const sign = n < 0 ? '-Rp ' : 'Rp ';
+      return sign + Math.abs(n).toLocaleString('id-ID');
+    }
+
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('hidden');
+      el.classList.add('flex');
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add('hidden');
+      el.classList.remove('flex');
+    }
+
+    function openBalanceModal(walletId) {
+      document.getElementById('balanceModalWalletId').value = walletId;
+      const titleMap = {
+        CASH: 'Atur Saldo Uang Tunai (Cash)',
+        ATM: 'Atur Saldo ATM 1 (Simpanan Utama)',
+        ATM2: 'Atur Saldo ATM 2 (Dompet Jajan / QRIS)'
+      };
+      const currentVal =
+        walletId === 'ATM'
+          ? currentState.wallets?.atm?.balance
+          : walletId === 'ATM2'
+          ? currentState.wallets?.atm2?.balance
+          : currentState.wallets?.cash?.balance;
+
+      document.getElementById('balanceModalTitle').textContent = titleMap[walletId] || 'Atur Saldo';
+      document.getElementById('balanceModalInput').value = Number(currentVal || 0);
+      openModal('balanceModal');
+      setTimeout(() => document.getElementById('balanceModalInput').focus(), 50);
+    }
+
+    async function submitBalanceAdjust(e) {
+      e.preventDefault();
+      const walletId = document.getElementById('balanceModalWalletId').value;
+      const val = Number(document.getElementById('balanceModalInput').value || 0);
+      closeModal('balanceModal');
+      const cmdWallet = walletId === 'ATM' ? 'atm 1' : walletId === 'ATM2' ? 'atm 2' : 'tunai';
+      await fillAndSend(`set saldo ${cmdWallet} ${val}`);
+    }
+
+    function openTransferModal() {
+      document.getElementById('transferAmountInput').value = '';
+      openModal('transferModal');
+      setTimeout(() => document.getElementById('transferAmountInput').focus(), 50);
+    }
+
+    async function submitInterWalletTransfer(e) {
+      e.preventDefault();
+      const direction = document.getElementById('transferDirection').value;
+      const amount = Number(document.getElementById('transferAmountInput').value || 0);
+      if (amount <= 0) return;
+      closeModal('transferModal');
+      await fillAndSend(`${direction} ${amount}`);
+    }
+
+    function pulseElement(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('metric-flash');
+      void el.offsetWidth;
+      el.classList.add('metric-flash');
+    }
+
+    async function fetchDashboardData() {
+      const res = await fetch('/api/dashboard');
+      const data = await res.json();
+      renderDashboard(data);
+    }
+
+    function renderDashboard(data) {
+      const prevCash = currentState.wallets?.cash?.balance;
+      const prevAtm1 = currentState.wallets?.atm?.balance;
+      const prevAtm2 = currentState.wallets?.atm2?.balance;
+      currentState = { ...currentState, ...data };
+
+      const { wallets, todayStats, categories, settings, waState } = data;
+
+      if (wallets) {
+        const cashBal = Number(wallets.cash?.balance || 0);
+        const atm1Bal = Number(wallets.atm?.balance || 0);
+        const atm2Bal = Number(wallets.atm2?.balance || 0);
+        const totalBal = Number(wallets.total?.balance ?? (cashBal + atm1Bal + atm2Bal));
+
+        document.getElementById('cashBalanceDisplay').textContent = formatRp(cashBal);
+        document.getElementById('cashIncomeDisplay').textContent = '+' + formatRp(wallets.cash?.total_income || 0);
+        document.getElementById('cashExpenseDisplay').textContent = '-' + formatRp(wallets.cash?.total_expense || 0);
+
+        document.getElementById('atm1BalanceDisplay').textContent = formatRp(atm1Bal);
+        document.getElementById('atm1IncomeDisplay').textContent = '+' + formatRp(wallets.atm?.total_income || 0);
+        document.getElementById('atm1ExpenseDisplay').textContent = '-' + formatRp(wallets.atm?.total_expense || 0);
+
+        document.getElementById('atm2BalanceDisplay').textContent = formatRp(atm2Bal);
+        document.getElementById('atm2IncomeDisplay').textContent = '+' + formatRp(wallets.atm2?.total_income || 0);
+        document.getElementById('atm2ExpenseDisplay').textContent = '-' + formatRp(wallets.atm2?.total_expense || 0);
+
+        document.getElementById('totalBalanceDisplay').textContent = formatRp(totalBal);
+
+        // 3-Way Liquidity Proportion Bar
+        const posCash = Math.max(0, cashBal);
+        const posAtm1 = Math.max(0, atm1Bal);
+        const posAtm2 = Math.max(0, atm2Bal);
+        const sumPos = Math.max(1, posCash + posAtm1 + posAtm2);
+
+        const cashPct = Math.round((posCash / sumPos) * 100);
+        const atm1Pct = Math.round((posAtm1 / sumPos) * 100);
+        const atm2Pct = Math.max(0, 100 - cashPct - atm1Pct);
+
+        document.getElementById('cashRatioLabel').textContent = `TUNAI: ${cashPct}%`;
+        document.getElementById('atm1RatioLabel').textContent = `ATM 1 (SIMPANAN): ${atm1Pct}%`;
+        document.getElementById('atm2RatioLabel').textContent = `ATM 2 (JAJAN/QRIS): ${atm2Pct}%`;
+
+        document.getElementById('cashRatioBar').style.width = `${Math.max(4, cashPct)}%`;
+        document.getElementById('atm1RatioBar').style.width = `${Math.max(4, atm1Pct)}%`;
+        document.getElementById('atm2RatioBar').style.width = `${Math.max(4, atm2Pct)}%`;
+
+        if (prevCash !== undefined && prevCash !== cashBal) pulseElement('cashBalanceDisplay');
+        if (prevAtm1 !== undefined && prevAtm1 !== atm1Bal) pulseElement('atm1BalanceDisplay');
+        if (prevAtm2 !== undefined && prevAtm2 !== atm2Bal) pulseElement('atm2BalanceDisplay');
+        if (
+          (prevCash !== undefined && prevCash !== cashBal) ||
+          (prevAtm1 !== undefined && prevAtm1 !== atm1Bal) ||
+          (prevAtm2 !== undefined && prevAtm2 !== atm2Bal)
+        ) {
+          pulseElement('totalBalanceDisplay');
+        }
+      }
+
+      if (todayStats) {
+        document.getElementById('todayExpenseDisplay').textContent = formatRp(todayStats.expense_total_today);
+      }
+
+      if (settings) {
+        document.getElementById('setSpreadsheetId').value = settings.spreadsheet_id || '';
+        document.getElementById('setAppsScriptUrl').value = settings.apps_script_webhook_url || '';
+        document.getElementById('inputWebhookUrl').value = settings.apps_script_webhook_url || '';
+        document.getElementById('setAiBaseUrl').value = settings.ai_base_url || 'https://openrouter.ai/api/v1';
+        document.getElementById('setAiModel').value = settings.ai_model || 'nvidia/nemotron-3.5-lightning:free';
+        document.getElementById('setAiApiKey').value = settings.ai_api_key || '';
+        document.getElementById('setWaWhitelist').value = settings.wa_whitelist || '';
+        if (document.getElementById('inputFonnteToken')) {
+          document.getElementById('inputFonnteToken').value = settings.fonnte_token || '';
+        }
+      }
+
+      if (data.appsScriptTemplate) {
+        document.getElementById('appsScriptCodeArea').value = data.appsScriptTemplate;
+      }
+
+      if (waState) {
+        renderWaState(waState);
+      }
+
+      renderTransactionsTable();
+      renderCategories(categories || []);
+    }
+
+    function setWalletFilter(filter) {
+      currentState.walletFilter = filter;
+      ['ALL', 'CASH', 'ATM', 'ATM2'].forEach((f) => {
+        const btn = document.getElementById('filter' + f);
+        if (!btn) return;
+        if (f === filter) {
+          btn.className = 'px-3 py-1 rounded-full font-medium bg-emerald-400 text-zinc-950 transition';
+        } else {
+          btn.className = 'px-3 py-1 rounded-full font-medium text-zinc-400 hover:text-white transition';
+        }
+      });
+      renderTransactionsTable();
+    }
+
+    function formatWalletName(w) {
+      if (w === 'ATM') return 'ATM 1';
+      if (w === 'ATM2') return 'ATM 2';
+      return 'TUNAI';
+    }
+
+    function renderTransactionsTable() {
+      const tbody = document.getElementById('txTableBody');
+      const filter = currentState.walletFilter || 'ALL';
+      const filtered = (currentState.transactions || []).filter((tx) => {
+        if (filter === 'ALL') return true;
+        return tx.wallet === filter || tx.target_wallet === filter;
+      });
+
+      document.getElementById('txCountBadge').textContent = filtered.length;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="py-10 text-center text-zinc-500 font-mono text-xs">
+              Belum ada mutasi pada filter dompet ini.
+            </td>
+          </tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered
+        .map((tx) => {
+          const dateStr = new Date(tx.created_at).toLocaleString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+
+          const isExpense = tx.type === 'EXPENSE';
+          const isIncome = tx.type === 'INCOME';
+          const amountColor = isExpense ? 'text-rose-400' : isIncome ? 'text-emerald-300' : 'text-sky-300';
+          const sign = isExpense ? '-' : isIncome ? '+' : '⇄ ';
+
+          let walletBadge = '';
+          if (tx.type === 'TRANSFER') {
+            walletBadge = `<span class="font-mono px-2.5 py-0.5 rounded-full text-[10px] bg-sky-500/15 text-sky-200 border border-sky-400/30">${formatWalletName(tx.wallet)} → ${formatWalletName(tx.target_wallet)}</span>`;
+          } else if (tx.wallet === 'ATM') {
+            walletBadge = `<span class="font-mono px-2.5 py-0.5 rounded-full text-[10px] bg-sky-500/15 text-sky-300 border border-sky-400/30">ATM 1 (Simpanan)</span>`;
+          } else if (tx.wallet === 'ATM2') {
+            walletBadge = `<span class="font-mono px-2.5 py-0.5 rounded-full text-[10px] bg-teal-500/15 text-teal-200 border border-teal-400/30">ATM 2 (Jajan)</span>`;
+          } else {
+            walletBadge = `<span class="font-mono px-2.5 py-0.5 rounded-full text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-400/30">Uang Tunai</span>`;
+          }
+
+          return `
+            <tr class="hover:bg-white/[0.03] transition">
+              <td class="py-3.5 px-2 whitespace-nowrap">
+                <div class="font-mono font-semibold text-zinc-200">${tx.id}</div>
+                <div class="font-mono text-[10px] text-zinc-500">${dateStr}</div>
+              </td>
+              <td class="py-3.5 px-2">
+                <div class="font-medium text-white">${tx.description}</div>
+                <div class="text-[11px] text-zinc-400">${tx.category} <span class="text-zinc-500">• "${tx.raw_message || ''}"</span></div>
+              </td>
+              <td class="py-3.5 px-2 whitespace-nowrap">${walletBadge}</td>
+              <td class="py-3.5 px-2 text-right font-mono font-semibold tabular-nums whitespace-nowrap ${amountColor}">
+                ${sign}${formatRp(tx.amount)}
+              </td>
+              <td class="py-3.5 px-2 text-right font-mono text-emerald-300/90 tabular-nums whitespace-nowrap">
+                ${formatRp(tx.balance_after_cash)}
+              </td>
+              <td class="py-3.5 px-2 text-right font-mono text-sky-300/90 tabular-nums whitespace-nowrap">
+                ${formatRp(tx.balance_after_atm)}
+              </td>
+              <td class="py-3.5 px-2 text-right font-mono text-teal-300/90 tabular-nums whitespace-nowrap">
+                ${formatRp(tx.balance_after_atm2)}
+              </td>
+            </tr>
+          `;
+        })
+        .join('');
+    }
+
+    function renderCategories(categories) {
+      const container = document.getElementById('categoryContainer');
+      if (!categories || categories.length === 0) {
+        container.innerHTML = `<p class="text-xs text-zinc-500">Belum ada distribusi pengeluaran.</p>`;
+        return;
+      }
+
+      const maxTotal = Math.max(...categories.map((c) => c.total), 1);
+      container.innerHTML = categories
+        .map((cat) => {
+          const widthPct = Math.max(6, Math.round((cat.total / maxTotal) * 100));
+          return `
+            <div class="space-y-1">
+              <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span class="font-medium text-zinc-200">${cat.category} <span class="font-mono text-[10px] text-zinc-500">(${cat.count}x)</span></span>
+                <div class="font-mono text-[11px] flex flex-wrap items-center gap-3 tabular-nums">
+                  <span class="text-emerald-300">Tunai: ${formatRp(cat.cash || 0)}</span>
+                  <span class="text-sky-300">ATM 1: ${formatRp(cat.atm || 0)}</span>
+                  <span class="text-teal-300">ATM 2: ${formatRp(cat.atm2 || 0)}</span>
+                  <span class="font-semibold text-white">${formatRp(cat.total)}</span>
+                </div>
+              </div>
+              <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden">
+                <div class="h-full bg-gradient-to-r from-emerald-400 via-sky-400 to-teal-300 rounded-full transition-all duration-700" style="width: ${widthPct}%"></div>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+    }
+
+    function appendChatBubble(text, sender = 'user') {
+      const container = document.getElementById('chatContainer');
+      const div = document.createElement('div');
+      const formatted = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\*([^*]+)\*/g, '<strong class="text-white font-semibold">$1</strong>')
+        .replace(/_([^_]+)_/g, '<em class="text-zinc-400">$1</em>')
+        .replace(/\n/g, '<br/>');
+
+      if (sender === 'user') {
+        div.className = 'ml-auto bg-emerald-400 text-zinc-950 font-semibold rounded-2xl rounded-tr-sm p-3 max-w-[85%] shadow-[0_8px_24px_rgba(16,185,129,0.25)]';
+        div.innerHTML = `<p class="leading-relaxed">${formatted}</p>`;
+      } else {
+        div.className = 'bg-white/[0.045] text-zinc-200 rounded-2xl rounded-tl-sm p-3.5 max-w-[92%] border border-white/[0.09] font-mono text-[11px]';
+        div.innerHTML = `<p class="leading-relaxed">${formatted}</p>`;
+      }
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function handleChatSubmit(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('chatInput');
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      input.value = '';
+      appendChatBubble(msg, 'user');
+
+      const btn = document.getElementById('chatSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg })
+        });
+        const data = await res.json();
+        if (data.reply) {
+          appendChatBubble(data.reply, 'bot');
+        }
+        await fetchDashboardData();
+      } catch (err) {
+        appendChatBubble('Error: ' + err.message, 'bot');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Kirim';
+      }
+    }
+
+    async function fillAndSend(text) {
+      document.getElementById('chatInput').value = text;
+      await handleChatSubmit();
+    }
+
+    function sendQuickCommand(cmd) {
+      fillAndSend(cmd);
+    }
+
+    async function copyFixedScriptDirect() {
+      if (currentState.appsScriptTemplate) {
+        await navigator.clipboard.writeText(currentState.appsScriptTemplate);
+        const btn = document.getElementById('btnQuickCopyScript');
+        const originalHtml = btn.innerHTML;
+        btn.textContent = 'Tercopy! Paste di Apps Script -> Jalankan (100% Aman Tanpa Reset)';
+        setTimeout(() => { btn.innerHTML = originalHtml; }, 3500);
+      } else {
+        openModal('scriptModal');
+      }
+    }
+
+    async function copyAppsScriptCode() {
+      const area = document.getElementById('appsScriptCodeArea');
+      area.select();
+      await navigator.clipboard.writeText(area.value);
+      const btn = document.getElementById('btnCopyScript');
+      btn.textContent = 'Berhasil Dicopy!';
+      setTimeout(() => { btn.textContent = 'Copy Kode Script'; }, 2500);
+    }
+
+    async function saveWebhookAndSync() {
+      const url = document.getElementById('inputWebhookUrl').value.trim();
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apps_script_webhook_url: url })
+      });
+      await triggerFullSheetSync();
+      closeModal('scriptModal');
+    }
+
+    async function triggerFullSheetSync() {
+      const btn = document.getElementById('btnForceSync');
+      btn.textContent = 'Syncing...';
+      try {
+        const res = await fetch('/api/sheets/sync', { method: 'POST' });
+        const data = await res.json();
+        if (data.synced) {
+          appendChatBubble('Sinkronisasi 3 Dompet (Tunai, ATM 1 Simpanan, ATM 2 Jajan) ke Google Spreadsheet berhasil.', 'bot');
+        } else {
+          openModal('scriptModal');
+        }
+        await fetchDashboardData();
+      } finally {
+        btn.textContent = 'Sync ke Spreadsheet';
+      }
+    }
+
+    async function saveFonnteToken() {
+      const token = document.getElementById('inputFonnteToken').value.trim();
+      const btn = document.getElementById('btnSaveFonnte');
+      btn.textContent = 'Menyimpan...';
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fonnte_token: token })
+      });
+      btn.textContent = 'Aktif!';
+      setTimeout(() => { btn.textContent = 'Aktifkan'; }, 2500);
+      await fetchDashboardData();
+    }
+
+    async function saveAllSettings(e) {
+      e.preventDefault();
+      const payload = {
+        spreadsheet_id: document.getElementById('setSpreadsheetId').value.trim(),
+        apps_script_webhook_url: document.getElementById('setAppsScriptUrl').value.trim(),
+        ai_base_url: document.getElementById('setAiBaseUrl').value.trim(),
+        ai_model: document.getElementById('setAiModel').value.trim(),
+        ai_api_key: document.getElementById('setAiApiKey').value.trim(),
+        wa_whitelist: document.getElementById('setWaWhitelist').value.trim(),
+      };
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      closeModal('settingsModal');
+      await fetchDashboardData();
+    }
+
+    function renderWaState(waState) {
+      const pill = document.getElementById('waStatusPill');
+      const qrBox = document.getElementById('waQrBox');
+      const qrImg = document.getElementById('waQrImage');
+      const btnConnect = document.getElementById('btnConnectWa');
+      const btnLogout = document.getElementById('btnLogoutWa');
+      const statusText = document.getElementById('waStatusText');
+
+      if (waState.status === 'CONNECTED') {
+        pill.textContent = 'Online (' + (waState.connectedUser?.id || 'WA') + ')';
+        pill.className = 'font-mono text-[10px] px-2.5 py-1 rounded-full bg-emerald-400/15 text-emerald-300 border border-emerald-400/30';
+        qrBox.classList.add('hidden');
+        qrBox.classList.remove('flex');
+        btnConnect.classList.add('hidden');
+        btnLogout.classList.remove('hidden');
+        statusText.textContent = 'Bot WA Aktif (Signal Retry Cache ON). Kirim chat dari 081335499566 ke 081216776548.';
+      } else if (waState.status === 'QR_READY' && waState.qrDataUrl) {
+        pill.textContent = 'Scan QR Ready';
+        pill.className = 'font-mono text-[10px] px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30';
+        qrImg.src = waState.qrDataUrl;
+        qrBox.classList.remove('hidden');
+        qrBox.classList.add('flex');
+        btnConnect.textContent = 'Refresh QR';
+        btnLogout.classList.remove('hidden');
+      } else if (waState.status === 'CONNECTING') {
+        pill.textContent = 'Generating QR...';
+      } else {
+        pill.textContent = 'Standby';
+        pill.className = 'font-mono text-[10px] px-2.5 py-1 rounded-full bg-white/[0.05] text-zinc-300 border border-white/[0.08]';
+        qrBox.classList.add('hidden');
+        qrBox.classList.remove('flex');
+        btnConnect.classList.remove('hidden');
+        btnConnect.textContent = 'Tampilkan QR WhatsApp';
+        btnLogout.classList.add('hidden');
+      }
+    }
+
+    async function connectWhatsApp() {
+      await fetch('/api/wa/connect', { method: 'POST' });
+      await fetchDashboardData();
+    }
+
+    async function disconnectWhatsApp() {
+      await fetch('/api/wa/logout', { method: 'POST' });
+      await fetchDashboardData();
+    }
+
+    function setupRealtimeStream() {
+      const evtSource = new EventSource('/api/stream');
+      evtSource.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.type === 'STATE_UPDATE') fetchDashboardData();
+        } catch {}
+      };
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchDashboardData();
+      setupRealtimeStream();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "pencatatan-uang-ai-wa",
+  "version": "1.0.0",
+  "description": "Bot AI WhatsApp Pencatatan Keuangan Otomatis + Auto-Sync Google Spreadsheet (Tunai & ATM) + Real-time Web Dashboard",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node --no-warnings src/server.js",
+    "dev": "node --watch --no-warnings src/server.js",
+    "test": "node --no-warnings tests/verify-flow.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.16",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "googleapis": "^144.0.0",
+    "pino": "^9.6.0",
+    "qrcode": "^1.5.4"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
