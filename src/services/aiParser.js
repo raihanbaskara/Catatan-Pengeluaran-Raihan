@@ -203,10 +203,10 @@ function localParseMessage(rawText) {
     return { intent: 'SUMMARY', items: [], provider: 'local-nlp' };
   }
 
-  // 4. Check commands: set/atur saldo awal (e.g. "set saldo tunai 300rb" or "atur saldo atm 2 1,5jt")
-  const setBalanceMatch = lower.match(/^(?:set|atur|ubah|update)\s+saldo\s+(tunai|cash|atm\s*2|atm\s*1|atm|rekening)\s+(.+)$/i);
+  // 4. Check commands: set/atur/ubah/isi saldo awal (e.g. "set saldo tunai 300rb", "isi saldo 15 ribu", "atur saldo atm 2 1,5jt")
+  const setBalanceMatch = lower.match(/^(?:set|atur|ubah|update|isi)\s+saldo(?:\s+(tunai|cash|atm\s*2|atm\s*1|atm|rekening))?\s+(.+)$/i);
   if (setBalanceMatch) {
-    const rawTarget = setBalanceMatch[1];
+    const rawTarget = setBalanceMatch[1] || 'tunai';
     const walletTarget = /atm\s*2/i.test(rawTarget) ? 'ATM2' : /atm|rekening/i.test(rawTarget) ? 'ATM' : 'CASH';
     const amountVal = parseIndonesianAmount(setBalanceMatch[2]);
     return {
@@ -218,22 +218,22 @@ function localParseMessage(rawText) {
     };
   }
 
-  // 5A. Check Alokasi / Menyendirikan Uang dari ATM 1 (Simpanan) ke ATM 2 (Jajan)
-  // e.g. "isi atm 2 500 ribu", "pindah ke atm 2 800rb", "sendirikan ke atm 2 500rb", "transfer atm 1 ke atm 2 500rb"
-  if (/(?:isi|pindah|sendirikan|alokasi|jatah|oper|tf|transfer).*\batm\s*2\b/i.test(lower)) {
-    const cleanedForAmount = text.replace(/\b(atm|rekening|bank)\s*[12]\b/gi, 'atm');
-    const amount = parseIndonesianAmount(cleanedForAmount);
+  // 4B. Check "isi [tunai/cash/uang] [nominal]" or plain "isi [nominal]" (NOT "isi bensin/pulsa/kuota/token/air/galon/angin/gas")
+  if (
+    /^isi\s+(?:uang\s+tunai|tunai|cash|dompet|uang)?\s*(?:rp\.?\s*)?\d+/i.test(lower) &&
+    !/\b(bensin|pertalite|pertamax|pulsa|kuota|paket|token|listrik|air|galon|angin|gas|etoll|flazz|emoney|gopay|ovo|dana|shopeepay)\b/i.test(lower)
+  ) {
+    const amount = parseIndonesianAmount(text);
     if (amount > 0) {
       return {
         intent: 'TRANSACTION',
         provider: 'local-nlp',
         items: [
           {
-            type: 'TRANSFER',
-            description: 'Alokasi Jajan ATM 1 ke ATM 2',
-            category: 'Tarik / Setor Tunai',
-            wallet: 'ATM',
-            targetWallet: 'ATM2',
+            type: 'INCOME',
+            description: 'Isi Saldo Uang Tunai',
+            category: 'Gaji & Bonus',
+            wallet: 'CASH',
             amount,
           },
         ],
@@ -241,21 +241,82 @@ function localParseMessage(rawText) {
     }
   }
 
-  // 5B. Check Pindah Saldo dari ATM 2 kembali ke ATM 1 (Simpanan)
+  // 5A. Check Alokasi / Isi ATM 2 ("isi atm 2 500 ribu", "pindah ke atm 2 800rb")
+  // If ATM 1 has sufficient balance (>= amount) OR user explicitly says "pindah/transfer/geser/sendirikan", record TRANSFER (ATM 1 -> ATM 2).
+  // Otherwise (e.g. ATM 1 is Rp 0 and user says "isi atm 2 15 ribu"), record INCOME directly into ATM 2!
+  if (/(?:isi|pindah|sendirikan|alokasi|jatah|oper|tf|transfer).*\batm\s*2\b/i.test(lower)) {
+    const cleanedForAmount = text.replace(/\b(atm|rekening|bank)\s*[12]\b/gi, 'atm');
+    const amount = parseIndonesianAmount(cleanedForAmount);
+    if (amount > 0) {
+      const { getWallets } = require('../db/database');
+      const curWallets = getWallets();
+      const atm1Bal = Number(curWallets?.atm?.balance || 0);
+      const isExplicitTransfer = /\b(pindah|sendirikan|alokasi|geser|oper|dari\s+atm\s*1)\b/i.test(lower);
+
+      if (atm1Bal >= amount || isExplicitTransfer) {
+        return {
+          intent: 'TRANSACTION',
+          provider: 'local-nlp',
+          items: [
+            {
+              type: 'TRANSFER',
+              description: 'Alokasi Jajan ATM 1 ke ATM 2',
+              category: 'Tarik / Setor Tunai',
+              wallet: 'ATM',
+              targetWallet: 'ATM2',
+              amount,
+            },
+          ],
+        };
+      } else {
+        return {
+          intent: 'TRANSACTION',
+          provider: 'local-nlp',
+          items: [
+            {
+              type: 'INCOME',
+              description: 'Isi Saldo ATM 2 (Jajan)',
+              category: 'Gaji & Bonus',
+              wallet: 'ATM2',
+              amount,
+            },
+          ],
+        };
+      }
+    }
+  }
+
+  // 5B. Check Isi / Pindah ke ATM 1 (Simpanan)
   if (/(?:isi|pindah|simpan|tabung|oper|tf|transfer).*\batm\s*1\b/i.test(lower) && !/\bke\s+atm\s*2\b/i.test(lower)) {
     const cleanedForAmount = text.replace(/\b(atm|rekening|bank)\s*[12]\b/gi, 'atm');
     const amount = parseIndonesianAmount(cleanedForAmount);
     if (amount > 0) {
+      const isExplicitFromAtm2 = /\b(dari\s+atm\s*2|pindah|oper)\b/i.test(lower);
+      if (isExplicitFromAtm2) {
+        return {
+          intent: 'TRANSACTION',
+          provider: 'local-nlp',
+          items: [
+            {
+              type: 'TRANSFER',
+              description: 'Simpan Saldo ATM 2 ke ATM 1',
+              category: 'Tarik / Setor Tunai',
+              wallet: 'ATM2',
+              targetWallet: 'ATM',
+              amount,
+            },
+          ],
+        };
+      }
       return {
         intent: 'TRANSACTION',
         provider: 'local-nlp',
         items: [
           {
-            type: 'TRANSFER',
-            description: 'Simpan Saldo ATM 2 ke ATM 1',
-            category: 'Tarik / Setor Tunai',
-            wallet: 'ATM2',
-            targetWallet: 'ATM',
+            type: 'INCOME',
+            description: 'Isi Saldo ATM 1 (Simpanan)',
+            category: 'Gaji & Bonus',
+            wallet: 'ATM',
             amount,
           },
         ],

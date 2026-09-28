@@ -825,6 +825,9 @@ function doGet() {
 `;
 }
 
+const DEFAULT_WEBHOOK_URL =
+  'https://script.google.com/macros/s/AKfycbxdhh_Lfug1rDisxX4KTShgwMb5NzcBQPm-zP76vZHwZycZ55uhT8Qk8ooYzCpSo85mBw/exec';
+
 let lastHydratedAt = 0;
 
 /**
@@ -832,7 +835,7 @@ let lastHydratedAt = 0;
  */
 async function hydrateFromGoogleSheets(force = false) {
   const settings = getSettings();
-  const webhookUrl = (settings.apps_script_webhook_url || '').trim();
+  const webhookUrl = (settings.apps_script_webhook_url || '').trim() || DEFAULT_WEBHOOK_URL;
   if (!webhookUrl || !webhookUrl.startsWith('https://script.google.com/')) return false;
   if (!force && Date.now() - lastHydratedAt < 25000) return true;
 
@@ -859,7 +862,7 @@ async function syncToGoogleSheets(newTransactions = [], forceFullSync = false) {
   const settings = getSettings();
   const spreadsheetId =
     (settings.spreadsheet_id || '1_UvnRmnVZzxfzNp-mASlWtrpuqShcDD8ei8NuHK3YkM').trim();
-  const webhookUrl = (settings.apps_script_webhook_url || '').trim();
+  const webhookUrl = (settings.apps_script_webhook_url || '').trim() || DEFAULT_WEBHOOK_URL;
 
   const wallets = getWallets();
   const timestamp = formatWIBDate(new Date().toISOString());

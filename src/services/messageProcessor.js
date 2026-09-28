@@ -56,17 +56,49 @@ async function processIncomingChat(rawMessage, source = 'WHATSAPP', onStateChang
     };
   }
 
-  // 2. Intent: SET_BALANCE ("set saldo tunai 300rb", "atur saldo atm 2 1,5 juta")
+  // 2. Intent: SET_BALANCE ("set saldo tunai 300rb", "atur saldo atm 2 1,5 juta", "isi saldo 15 ribu")
   if (parsed.intent === 'SET_BALANCE') {
-    const wallets = setWalletBalance(parsed.wallet, parsed.amount);
-    const syncRes = await syncToGoogleSheets([], true);
+    const beforeWallets = getWallets();
+    const curObj =
+      parsed.wallet === 'ATM2'
+        ? beforeWallets.atm2
+        : parsed.wallet === 'ATM'
+        ? beforeWallets.atm
+        : beforeWallets.cash;
+    const oldBalance = Number(curObj?.balance || 0);
+    const newBalance = Math.round(Number(parsed.amount) || 0);
+    const delta = newBalance - oldBalance;
+
+    let wallets;
+    let syncRes;
+    if (newBalance > 0 && delta !== 0) {
+      // Record as a real transaction row so both Website Ledger AND Google Spreadsheet (Spending/Report/Budgeting) update 100% in sync!
+      const txResult = recordTransactions(
+        [
+          {
+            type: delta > 0 ? 'INCOME' : 'EXPENSE',
+            description: delta > 0 ? `Saldo Awal / Isi ${getWalletDisplayName(parsed.wallet).replace(/^[^\s]+\s/, '')}` : `Penyesuaian Saldo`,
+            category: delta > 0 ? 'Gaji & Bonus' : 'Pengeluaran Lainnya',
+            wallet: parsed.wallet,
+            amount: Math.abs(delta),
+          },
+        ],
+        text,
+        source
+      );
+      wallets = txResult.wallets;
+      syncRes = await syncToGoogleSheets(txResult.transactions, false);
+    } else {
+      wallets = setWalletBalance(parsed.wallet, newBalance);
+      syncRes = await syncToGoogleSheets([], true);
+    }
     notify();
 
     const walletLabel = getWalletDisplayName(parsed.wallet);
     const reply = [
       `✅ *SALDO BERHASIL DIATUR!*`,
       `━━━━━━━━━━━━━━━━━━`,
-      `${walletLabel} diatur menjadi: *${formatRupiah(parsed.amount)}*`,
+      `${walletLabel} diatur menjadi: *${formatRupiah(newBalance)}*`,
       ``,
       `📊 *Posisi Saldo Sekarang:*`,
       `💵 Uang Tunai: *${formatRupiah(wallets.cash.balance)}*`,
