@@ -30,7 +30,7 @@ const defaultSettings = {
   google_service_account_json: '',
   ai_provider: process.env.AI_PROVIDER || 'openrouter',
   ai_base_url: process.env.AI_BASE_URL || 'https://openrouter.ai/api/v1',
-  ai_model: process.env.AI_MODEL || 'google/gemini-2.0-flash-exp:free',
+  ai_model: process.env.AI_MODEL || 'qwen/qwen3.8-27b:free',
   ai_api_key: process.env.AI_API_KEY || '',
   wa_whitelist: process.env.WA_WHITELIST || '6281335499566',
   fonnte_token: process.env.FONNTE_TOKEN || '',

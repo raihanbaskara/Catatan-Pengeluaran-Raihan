@@ -373,28 +373,33 @@ async function parseFinancialMessage(rawText) {
   const settings = getSettings();
   const apiKey = (settings.ai_api_key || process.env.AI_API_KEY || '').trim();
   const baseUrl = (settings.ai_base_url || process.env.AI_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/+$/, '');
-  const model = settings.ai_model || process.env.AI_MODEL || 'google/gemini-2.0-flash-exp:free';
+  const primaryModel = settings.ai_model || process.env.AI_MODEL || 'qwen/qwen3.8-27b:free';
 
-  // Quick command check first (instant response for cek saldo / undo / rekap)
+  // Quick command check first (instant response for cek saldo / undo / rekap / set saldo / transfer)
   const localCheck = localParseMessage(rawText);
   if (['CHECK_BALANCE', 'UNDO', 'SUMMARY', 'SET_BALANCE'].includes(localCheck.intent)) {
     return localCheck;
   }
 
+  // If local deterministic parser already confidently matched a transaction or inter-ATM transfer, return fast if no API key
   if (!apiKey) {
     return localCheck;
   }
 
-  try {
-    const systemPrompt = `Kamu adalah AI pencatat keuangan pribadi pintar berbahasa Indonesia.
+  const systemPrompt = `Kamu adalah AI pencatat keuangan pribadi pintar berbahasa Indonesia dengan sistem 3 Dompet.
 Tugasmu mengekstrak chat WhatsApp user menjadi JSON murni (tanpa markdown block).
 
-ATURAN DOMPET (SANGAT PENTING):
-- Hanya ada 2 dompet: "CASH" (Saldo Uang Tunai) dan "ATM" (Saldo ATM / Bank / QRIS).
-- Jika user TIDAK menyebut metode bayar (contoh: "beli makan seblak 10 ribu"), WAJIB pilih wallet: "CASH".
-- Jika user menyebut kata kunci non-tunai (contoh: "atm", "qris", "tf", "transfer", "debit", "bca", "mandiri", "gopay", "dana"), pilih wallet: "ATM".
-- Jika user tarik tunai di ATM (contoh: "tarik tunai 100rb"), gunakan type: "TRANSFER", wallet: "ATM", targetWallet: "CASH".
-- Jika user setor tunai ke ATM, gunakan type: "TRANSFER", wallet: "CASH", targetWallet: "ATM".
+ATURAN 3 DOMPET (WAJIB DIIKUTI):
+1. "CASH" (Saldo Uang Tunai):
+   - WAJIB dipilih untuk PENGELUARAN ("EXPENSE") jika user TIDAK menyebutkan metode bayar (contoh: "beli makan seblak 10 ribu", "beli bensin 20rb").
+2. "ATM" (Saldo ATM 1 — Simpanan Utama):
+   - WAJIB dipilih untuk PEMASUKAN ("INCOME") seperti gaji/uang masuk (contoh: "gaji masuk 3 juta", "uang masuk 2 juta"), kecuali user eksplisit menyebut "masuk atm 2" atau "masuk tunai".
+   - Hanya dipilih untuk pengeluaran jika user eksplisit menyebut "atm 1" atau "simpanan".
+3. "ATM2" (Saldo ATM 2 — Dompet Jajan / QRIS):
+   - WAJIB dipilih untuk semua PENGELUARAN non-tunai harian (contoh: "qris", "tf", "transfer", "debit", "atm", "bca", "mandiri", "gopay", "dana", misal: "beli kopi 18rb pakai qris").
+4. Alokasi / Pindah Saldo ("TRANSFER"):
+   - Jika user memindahkan uang ke ATM 2 untuk jajan (contoh: "isi atm 2 500 ribu", "pindah ke atm 2 500rb"), gunakan type: "TRANSFER", wallet: "ATM", targetWallet: "ATM2".
+   - Jika user tarik tunai (contoh: "tarik tunai 100rb"), gunakan type: "TRANSFER", wallet: "ATM2", targetWallet: "CASH".
 
 Format JSON yang wajib dikembalikan:
 {
@@ -402,52 +407,61 @@ Format JSON yang wajib dikembalikan:
   "items": [
     {
       "type": "EXPENSE" | "INCOME" | "TRANSFER",
-      "description": "Nama transaksi rapi, misal: Beli makan seblak",
+      "description": "Nama transaksi rapi, misal: Beli kopi",
       "category": "Makanan & Minuman" | "Transportasi" | "Belanja & Kebutuhan" | "Tagihan & Utilitas" | "Hiburan & Langganan" | "Kesehatan" | "Pendidikan" | "Gaji & Bonus" | "Tarik / Setor Tunai" | "Pengeluaran Lainnya",
-      "wallet": "CASH" | "ATM",
-      "targetWallet": "CASH" | "ATM" | null,
-      "amount": 10000
+      "wallet": "CASH" | "ATM" | "ATM2",
+      "targetWallet": "CASH" | "ATM" | "ATM2" | null,
+      "amount": 18000
     }
   ]
 }`;
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-        'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'Pencatatan Uang AI WA Bot',
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.1,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: rawText },
-        ],
-      }),
-      signal: AbortSignal.timeout(8000),
-    });
+  const candidateModels = [
+    primaryModel,
+    'qwen/qwen3.8-27b:free',
+    'qwen/qwen3-32b:free',
+    'qwen/qwen-2.5-72b-instruct:free',
+    'meta-llama/llama-3.3-70b-instruct:free',
+  ].filter((m, idx, arr) => m && arr.indexOf(m) === idx);
 
-    if (!response.ok) {
-      return localCheck;
-    }
+  for (const model of candidateModels) {
+    try {
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+          'HTTP-Referer': 'http://localhost:3000',
+          'X-Title': 'DOMPET.AI 3-Vault Ledger',
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.1,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: rawText },
+          ],
+        }),
+        signal: AbortSignal.timeout(8000),
+      });
 
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content || '';
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
-        return {
-          ...parsed,
-          provider: `ai (${model})`,
-        };
+      if (!response.ok) continue;
+
+      const data = await response.json();
+      const content = data?.choices?.[0]?.message?.content || '';
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+          return {
+            ...parsed,
+            provider: `ai (${model})`,
+          };
+        }
       }
+    } catch {
+      // Try next free model in candidate list or fallback to localCheck
     }
-  } catch (err) {
-    // Fallback gracefully to local NLP parser
   }
 
   return localCheck;
