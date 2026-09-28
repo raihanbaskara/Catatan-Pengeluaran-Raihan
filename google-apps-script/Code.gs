@@ -572,32 +572,17 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // Always sync initial_balance of the 3 Wallets into Setup!B2 (Tunai), Setup!B3 (ATM 1), Setup!B4 (ATM 2)
+    // Update initial_balance in Setup!B2:B4 ONLY if payload explicitly includes non-zero wallet calibration
     const setupSheet = ss.getSheetByName('Setup');
     if (setupSheet && payload.wallets) {
-      if (payload.wallets.cash && typeof payload.wallets.cash.initial_balance === 'number') {
+      if (payload.wallets.cash && Number(payload.wallets.cash.initial_balance) > 0) {
         setupSheet.getRange('B2').setValue(payload.wallets.cash.initial_balance);
       }
-      if (payload.wallets.atm && typeof payload.wallets.atm.initial_balance === 'number') {
+      if (payload.wallets.atm && Number(payload.wallets.atm.initial_balance) > 0) {
         setupSheet.getRange('B3').setValue(payload.wallets.atm.initial_balance);
       }
-      if (payload.wallets.atm2 && typeof payload.wallets.atm2.initial_balance === 'number') {
+      if (payload.wallets.atm2 && Number(payload.wallets.atm2.initial_balance) > 0) {
         setupSheet.getRange('B4').setValue(payload.wallets.atm2.initial_balance);
-      }
-    }
-
-    // If all 3 wallets were reset to 0 on Website/WA, clear Spending rows so Report!D6, H6, I6 are cleanly Rp 0
-    if (
-      payload.wallets &&
-      Number(payload.wallets.cash?.balance || 0) === 0 &&
-      Number(payload.wallets.atm?.balance || 0) === 0 &&
-      Number(payload.wallets.atm2?.balance || 0) === 0 &&
-      (!payload.newRows || payload.newRows.length === 0)
-    ) {
-      const sp = ss.getSheetByName('Spending');
-      if (sp) {
-        sp.getRange('A4:J200').clearContent();
-        sp.getRange('A4:A200').insertCheckboxes();
       }
     }
 
