@@ -4,6 +4,7 @@ const {
   getTransactions,
   getUnsyncedTransactions,
   markTransactionSynced,
+  hydrateStateFromCloud,
 } = require('../db/database');
 
 function formatRupiah(num) {
@@ -716,12 +717,57 @@ function doPost(e) {
 }
 
 function doGet() {
-  return ContentService.createTextOutput(JSON.stringify({
-    ok: true,
-    status: 'Aktif! 5-Tab Money Management Dashboard Webhook siap menerima transaksi WA.'
-  })).setMimeType(ContentService.MimeType.JSON);
+  try {
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var reportSheet = ss.getSheetByName('Report');
+    var wallets = null;
+    if (reportSheet) {
+      wallets = {
+        cash: Number(reportSheet.getRange('F6').getValue() || 0),
+        atm1: Number(reportSheet.getRange('H6').getValue() || 0),
+        atm2: Number(reportSheet.getRange('I6').getValue() || 0)
+      };
+    }
+    return ContentService.createTextOutput(JSON.stringify({
+      ok: true,
+      wallets: wallets,
+      status: 'Aktif! 5-Tab Money Management Dashboard Webhook siap menerima transaksi WA.'
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      ok: true,
+      status: 'Aktif! 5-Tab Money Management Dashboard Webhook siap menerima transaksi WA.'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
 }
 `;
+}
+
+let lastHydratedAt = 0;
+
+/**
+ * Hydrates wallet balances from Google Spreadsheet on Vercel Serverless cold starts
+ */
+async function hydrateFromGoogleSheets(force = false) {
+  const settings = getSettings();
+  const webhookUrl = (settings.apps_script_webhook_url || '').trim();
+  if (!webhookUrl || !webhookUrl.startsWith('https://script.google.com/')) return false;
+  if (!force && Date.now() - lastHydratedAt < 25000) return true;
+
+  try {
+    const res = await fetch(`${webhookUrl}?action=STATE`, {
+      method: 'GET',
+      redirect: 'follow',
+      signal: AbortSignal.timeout(6000),
+    });
+    const data = await res.json().catch(() => null);
+    if (data && data.ok && data.wallets) {
+      hydrateStateFromCloud(data);
+      lastHydratedAt = Date.now();
+      return true;
+    }
+  } catch {}
+  return false;
 }
 
 /**
@@ -798,6 +844,7 @@ async function syncToGoogleSheets(newTransactions = [], forceFullSync = false) {
 
 module.exports = {
   syncToGoogleSheets,
+  hydrateFromGoogleSheets,
   getAppsScriptTemplate,
   formatRupiah,
   formatWIBDate,

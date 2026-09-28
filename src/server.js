@@ -10,7 +10,11 @@ const {
   setWalletBalance,
 } = require('./db/database');
 const { processIncomingChat } = require('./services/messageProcessor');
-const { syncToGoogleSheets, getAppsScriptTemplate } = require('./services/googleSheetsSync');
+const {
+  syncToGoogleSheets,
+  hydrateFromGoogleSheets,
+  getAppsScriptTemplate,
+} = require('./services/googleSheetsSync');
 const {
   startWhatsAppBot,
   logoutWhatsAppBot,
@@ -55,8 +59,9 @@ app.get('/api/stream', (req, res) => {
 });
 
 // Dashboard Data Endpoint
-app.get('/api/dashboard', (req, res) => {
+app.get('/api/dashboard', async (req, res) => {
   try {
+    await hydrateFromGoogleSheets();
     const summary = getDashboardSummary();
     const spreadsheetId =
       summary.settings?.spreadsheet_id || '1_UvnRmnVZzxfzNp-mASlWtrpuqShcDD8ei8NuHK3YkM';
@@ -79,6 +84,7 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'Pesan tidak boleh kosong' });
     }
 
+    await hydrateFromGoogleSheets();
     const result = await processIncomingChat(message, 'DASHBOARD', broadcastStateUpdate);
     broadcastStateUpdate();
     res.json(result);
@@ -95,6 +101,7 @@ app.get('/api/webhook/fonnte', (req, res) => {
 // Fonnte WhatsApp Webhook Endpoint (Strictly Personal Only — Never Replies to Groups)
 app.post('/api/webhook/fonnte', async (req, res) => {
   try {
+    await hydrateFromGoogleSheets();
     const sender = String(req.body?.sender || req.body?.pengirim || '').trim();
     const message = String(req.body?.message || req.body?.pesan || '').trim();
     const isGroup = Boolean(req.body?.isgroup) || sender.includes('@g.us') || sender.includes('-');
@@ -234,4 +241,5 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app };
+module.exports = app;
+module.exports.app = app;
