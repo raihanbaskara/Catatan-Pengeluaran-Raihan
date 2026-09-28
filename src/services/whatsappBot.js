@@ -45,19 +45,12 @@ async function startWhatsAppBot(onStateUpdate = () => {}) {
     const authDir = path.join(baseDataDir, 'wa-auth');
     if (!fs.existsSync(authDir)) {
       fs.mkdirSync(authDir, { recursive: true });
-    } else {
-      // Purge stale recipient Signal ratchet sessions (session-*.json) on boot while preserving creds.json
-      // This forces Baileys to send a fresh PreKeySignalMessage (pkmsg) to iPhone (:0) so it never gets stuck on "Menunggu pesan ini"
-      try {
-        for (const file of fs.readdirSync(authDir)) {
-          if (file.startsWith('session-')) {
-            fs.rmSync(path.join(authDir, file), { force: true });
-          }
-        }
-      } catch {}
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(authDir);
+    if (state?.creds?.me && !state.creds.me.lid) {
+      state.creds.me.lid = `${state.creds.me.id.split(':')[0].split('@')[0]}@lid`;
+    }
     const silentLogger = pino({ level: 'silent' });
     const authKeys = typeof makeCacheableSignalKeyStore === 'function'
       ? makeCacheableSignalKeyStore(state.keys, silentLogger)
@@ -91,7 +84,47 @@ async function startWhatsAppBot(onStateUpdate = () => {}) {
     waSocket = sock;
     sock.__generateMessageIDV2 = generateMessageIDV2;
 
-    sock.ev.on('creds.update', saveCreds);
+    // Workaround for Baileys v6.7.16 bug where iPhone @lid <receipt type="retry" recipient="..."> sets key.fromMe=false
+    if (sock.ws && typeof sock.ws.on === 'function') {
+      sock.ws.on('CB:receipt', async (node) => {
+        try {
+          const attrs = node?.attrs || {};
+          if (attrs.type === 'retry' && attrs.from) {
+            const retryJid = attrs.from;
+            if (retryJid.endsWith('@g.us') || retryJid === 'status@broadcast') return;
+            if (state?.creds?.me && !state.creds.me.lid) {
+              state.creds.me.lid = `${state.creds.me.id.split(':')[0].split('@')[0]}@lid`;
+            }
+            const retryKey = `retry_${attrs.id}_${retryJid}`;
+            if (processedMsgIds.has(retryKey)) return;
+            processedMsgIds.add(retryKey);
+
+            if (typeof sock.assertSessions === 'function') {
+              await sock.assertSessions([retryJid], true).catch(() => {});
+            }
+            const cachedMsg = (attrs.id && sentMessagesCache.get(attrs.id)) || { conversation: lastReplyText };
+            const textToResend =
+              cachedMsg?.conversation ||
+              cachedMsg?.extendedTextMessage?.text ||
+              lastReplyText;
+            if (textToResend) {
+              const resent = await sock.sendMessage(retryJid, { text: textToResend });
+              if (resent?.key?.id) {
+                processedMsgIds.add(resent.key.id);
+                sentMessagesCache.set(resent.key.id, resent.message || { conversation: textToResend });
+              }
+            }
+          }
+        } catch {}
+      });
+    }
+
+    sock.ev.on('creds.update', () => {
+      if (state?.creds?.me && !state.creds.me.lid) {
+        state.creds.me.lid = `${state.creds.me.id.split(':')[0].split('@')[0]}@lid`;
+      }
+      saveCreds();
+    });
 
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
@@ -113,8 +146,11 @@ async function startWhatsAppBot(onStateUpdate = () => {}) {
       }
 
       if (connection === 'open') {
+        if (state?.creds?.me && !state.creds.me.lid) {
+          state.creds.me.lid = `${state.creds.me.id.split(':')[0].split('@')[0]}@lid`;
+        }
         const userId = sock.user?.id ? sock.user.id.split(':')[0].split('@')[0] : 'Connected';
-        const userLid = sock.user?.lid ? sock.user.lid.split(':')[0].split('@')[0] : '';
+        const userLid = sock.user?.lid ? sock.user.lid.split(':')[0].split('@')[0] : `${userId}@lid`;
         waState = {
           status: 'CONNECTED',
           qrDataUrl: null,
@@ -245,23 +281,13 @@ async function startWhatsAppBot(onStateUpdate = () => {}) {
             waState.lastMessageAt = new Date().toISOString();
             lastReplyText = result.reply;
 
-            const targetJid = '6281335499566@s.whatsapp.net';
-
-            // Ensure iPhone primary device (:0) receives a fresh PreKeySignalMessage (pkmsg) if session was ever desynced
-            if (!sock.__iphonePreKeySynced) {
-              sock.__iphonePreKeySynced = true;
-              try {
-                await authKeys.set({
-                  session: {
-                    '6281335499566.0': null,
-                    '115685296451610.0': null,
-                  },
-                });
-                if (typeof sock.assertSessions === 'function') {
-                  await sock.assertSessions([targetJid, remoteJid].filter(Boolean), true);
-                }
-              } catch {}
+            if (state?.creds?.me && !state.creds.me.lid) {
+              state.creds.me.lid = `${state.creds.me.id.split(':')[0].split('@')[0]}@lid`;
             }
+
+            // Reply directly to remoteJid (e.g., 115685296451610@lid on iPhone) so Baileys encrypts with the
+            // exact same Signal session that just decrypted the user's incoming iPhone message!
+            const replyJid = remoteJid || '6281335499566@s.whatsapp.net';
 
             // Pre-generate and cache message BEFORE sendMessage so any instant iOS retry receipt finds it immediately
             const outMsgId =
@@ -271,11 +297,16 @@ async function startWhatsAppBot(onStateUpdate = () => {}) {
               sentMessagesCache.set(outMsgId, { conversation: result.reply });
             }
 
-            const sent = await sock.sendMessage(
-              targetJid,
-              { text: result.reply },
-              outMsgId ? { messageId: outMsgId } : undefined
-            );
+            let sent = null;
+            try {
+              sent = await sock.sendMessage(
+                replyJid,
+                { text: result.reply },
+                outMsgId ? { messageId: outMsgId } : undefined
+              );
+            } catch {
+              sent = await sock.sendMessage('6281335499566@s.whatsapp.net', { text: result.reply });
+            }
             if (sent?.key?.id) {
               processedMsgIds.add(sent.key.id);
               sentMessagesCache.set(sent.key.id, sent.message || { conversation: result.reply });
