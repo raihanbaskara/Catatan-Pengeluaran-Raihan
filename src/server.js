@@ -238,6 +238,13 @@ if (require.main === module) {
     console.log(`🚀 Server Bot AI WA & Dashboard Aktif di: http://localhost:${PORT}`);
     console.log(`📗 Target Google Spreadsheet: https://docs.google.com/spreadsheets/d/1_UvnRmnVZzxfzNp-mASlWtrpuqShcDD8ei8NuHK3YkM/edit`);
     console.log(`==================================================================`);
+
+    // Auto-start WhatsApp Bot on server boot so saved sessions (wa-auth) reconnect automatically after Railway deploy/restart
+    startWhatsAppBot(() => {
+      broadcastStateUpdate();
+    }).catch((err) => {
+      console.error('Auto-start WA Bot error:', err.message);
+    });
   });
 }
 
