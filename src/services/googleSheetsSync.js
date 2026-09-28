@@ -166,13 +166,44 @@ function onOpen() {
   try {
     SpreadsheetApp.getUi()
       .createMenu('📊 Menu Keuangan')
+      .addItem('🧹 Reset Saldo & Transaksi ke Rp 0 (Kategori Tetap Aman)', 'resetSaldoDanTransaksiKeNolTanpaUbahKategori')
+      .addSeparator()
       .addItem('🔄 Pasang Dropdown Bulan & ATM 1 + ATM 2 (Tanpa Reset)', 'updateDropdownDanAtmTanpaReset')
       .addToUi();
   } catch (e) {}
 }
 
 /**
- * FUNGSI UTAMA #1 (DEFAULT & AMAN):
+ * FUNGSI #1 (MULAI DARI NOL BERSIH - KATEGORI TETAP AMAN):
+ * - Mengatur Saldo Awal Uang Tunai, Saldo ATM 1, dan Saldo ATM 2 di tab [Setup] menjadi Rp 0
+ * - Menghapus baris transaksi percobaan/dummy di tab [Spending]
+ * - 100% TIDAK mengubah nama kategori maupun angka Allocation/Budget di tab [Report] & [Budgeting]!
+ */
+function resetSaldoDanTransaksiKeNolTanpaUbahKategori() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const setupSheet = ss.getSheetByName('Setup');
+  if (setupSheet) {
+    setupSheet.getRange('A2:C5').setValues([
+      ['Uang Tunai', 0, 'Dompet Fisik / Belanja Harian Tunai'],
+      ['Saldo ATM 1', 0, 'Rekening Simpanan Pasti & Uang Masuk Bulanan'],
+      ['Saldo ATM 2', 0, 'Rekening Jajan Harian / QRIS / Transfer'],
+      ['Tabungan', 0, 'Dana Cadangan / Emergency Fund']
+    ]);
+    setupSheet.getRange('B2:B5').setNumberFormat('"Rp"#,##0');
+  }
+
+  const spendingSheet = ss.getSheetByName('Spending');
+  if (spendingSheet) {
+    const maxR = Math.max(spendingSheet.getLastRow(), 100);
+    spendingSheet.getRange(4, 2, maxR, 9).clearContent();
+    spendingSheet.getRange(4, 1, maxR, 1).setValue(false);
+  }
+
+  updateDropdownDanAtmTanpaReset();
+}
+
+/**
+ * FUNGSI UTAMA #2 (AMAN / NON-DESTRUKTIF):
  * Hanya menambahkan Dropdown Bulan (filter otomatis) + Saldo ATM 1 (Simpanan) & Saldo ATM 2 (Jajan)
  * TANPA mereset atau menghapus editan manual kamu di Spreadsheet!
  */
@@ -181,7 +212,7 @@ function updateDropdownDanAtmTanpaReset() {
   const reportSheet = ss.getSheetByName('Report') || ss.getSheets()[0];
   if (!reportSheet) return;
 
-  // 1. Update Tab [Setup] secara Non-Destruktif (Pertahankan Saldo Awal yang sudah diedit user)
+  // 1. Update Tab [Setup] secara Non-Destruktif
   const setupSheet = ss.getSheetByName('Setup');
   if (setupSheet) {
     const curCash = setupSheet.getRange('B2').getValue();
@@ -190,15 +221,15 @@ function updateDropdownDanAtmTanpaReset() {
     const row4Val = setupSheet.getRange('B4').getValue();
 
     setupSheet.getRange('A2').setValue('Uang Tunai');
-    if (curCash === '' || curCash === null) setupSheet.getRange('B2').setValue(500000);
+    if (curCash === '' || curCash === null) setupSheet.getRange('B2').setValue(0);
 
     setupSheet.getRange('A3').setValue('Saldo ATM 1');
-    if (curAtm1 === '' || curAtm1 === null) setupSheet.getRange('B3').setValue(2500000);
+    if (curAtm1 === '' || curAtm1 === null) setupSheet.getRange('B3').setValue(0);
     setupSheet.getRange('C3').setValue('Rekening Simpanan Pasti & Uang Masuk Bulanan');
 
     if (row4Label !== 'Saldo ATM 2') {
-      const tabunganVal = (row4Label === 'Tabungan' && row4Val) ? row4Val : 1500000;
-      setupSheet.getRange('A4:C4').setValues([['Saldo ATM 2', 1000000, 'Rekening Jajan Harian / QRIS / Transfer']]);
+      const tabunganVal = (row4Label === 'Tabungan' && row4Val) ? row4Val : 0;
+      setupSheet.getRange('A4:C4').setValues([['Saldo ATM 2', 0, 'Rekening Jajan Harian / QRIS / Transfer']]);
       setupSheet.getRange('A5:C5').setValues([['Tabungan', tabunganVal, 'Dana Cadangan / Emergency Fund']]);
       setupSheet.getRange('B2:B5').setNumberFormat('"Rp"#,##0');
     }
@@ -682,18 +713,31 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // Update initial_balance in Setup!B2:B4 ONLY if payload explicitly includes non-zero wallet calibration
+    // Always sync initial_balance of the 3 Wallets into Setup!B2 (Tunai), Setup!B3 (ATM 1), Setup!B4 (ATM 2)
     const setupSheet = ss.getSheetByName('Setup');
     if (setupSheet && payload.wallets) {
-      if (payload.wallets.cash && Number(payload.wallets.cash.initial_balance) > 0) {
+      if (payload.wallets.cash && typeof payload.wallets.cash.initial_balance === 'number') {
         setupSheet.getRange('B2').setValue(payload.wallets.cash.initial_balance);
       }
-      if (payload.wallets.atm && Number(payload.wallets.atm.initial_balance) > 0) {
+      if (payload.wallets.atm && typeof payload.wallets.atm.initial_balance === 'number') {
         setupSheet.getRange('B3').setValue(payload.wallets.atm.initial_balance);
       }
-      if (payload.wallets.atm2 && Number(payload.wallets.atm2.initial_balance) > 0) {
+      if (payload.wallets.atm2 && typeof payload.wallets.atm2.initial_balance === 'number') {
         setupSheet.getRange('B4').setValue(payload.wallets.atm2.initial_balance);
       }
+    }
+
+    // If all 3 wallets are 0 on Website/WA (clean start), clear dummy Spending rows while keeping categories 100% safe
+    if (
+      payload.wallets &&
+      Number(payload.wallets.cash?.balance || 0) === 0 &&
+      Number(payload.wallets.atm?.balance || 0) === 0 &&
+      Number(payload.wallets.atm2?.balance || 0) === 0 &&
+      (!payload.newRows || payload.newRows.length === 0)
+    ) {
+      resetSaldoDanTransaksiKeNolTanpaUbahKategori();
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, message: 'Saldo & Transaksi di-reset ke Rp 0 (Kategori Tetap Aman)!' }))
+        .setMimeType(ContentService.MimeType.JSON);
     }
 
     // Non-destructive patch if FULL_SYNC is triggered on an existing spreadsheet
