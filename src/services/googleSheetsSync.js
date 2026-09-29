@@ -28,41 +28,74 @@ function formatWIBDate(isoStr) {
 }
 
 /**
- * Maps Indonesian categories from AI Parser to the 9 Dashboard categories in the user's template:
- * Home Rent, Utilities, Food, Supplies, Transportation, Healthcare, Debt, Shopping, Gifts
+ * Maps transaction category to match WhatsApp & Spreadsheet categories cleanly:
+ * - INCOME -> 'Pemasukan Lainnya' or 'Gaji & Bonus' (never 'Food' or 'Gifts')
+ * - TRANSFER -> 'Tarik / Setor Tunai' (never 'Food' even if description contains 'Jajan')
+ * - EXPENSE -> Matches exact Indonesian WhatsApp categories
  */
-function mapToDashboardCategory(category = '', description = '') {
-  const combined = `${category} ${description}`.toLowerCase();
-  if (/(makan|minum|seblak|kopi|bakso|mie|nasi|warung|cafe|jajan|snack|food|es\b|teh)/i.test(combined)) {
-    return 'Food';
+function mapToDashboardCategory(category = '', description = '', type = 'EXPENSE') {
+  if (type === 'INCOME') {
+    if (/gaji|bonus|thr|komisi|upah/i.test(`${category} ${description}`)) {
+      return 'Gaji & Bonus';
+    }
+    return category && !['Food', 'Gifts'].includes(category) ? category : 'Pemasukan Lainnya';
   }
-  if (/(bensin|parkir|ojol|gojek|grab|tol|kereta|transport|motor|oli|ban)/i.test(combined)) {
-    return 'Transportation';
+
+  if (type === 'TRANSFER') {
+    return 'Tarik / Setor Tunai';
+  }
+
+  // If AI Parser already assigned a valid Indonesian WhatsApp category, keep it 100% identical to WA!
+  const validWaCategories = [
+    'Makan & Minuman',
+    'Transportasi',
+    'Tagihan & Utilitas',
+    'Belanja & Kebutuhan',
+    'Hiburan & Nongkrong',
+    'Kesehatan',
+    'Pendidikan',
+    'Kos & Tempat Tinggal',
+    'Cicilan & Hutang',
+    'Gaji & Bonus',
+    'Pemasukan Lainnya',
+    'Tarik / Setor Tunai',
+    'Lain-lain',
+  ];
+  if (validWaCategories.includes(category)) {
+    return category;
+  }
+
+  const combined = `${category} ${description}`.toLowerCase();
+  if (/(makan|minum|seblak|kopi|bakso|mie|nasi|warung|cafe|jajan|snack|food|teh)/i.test(combined)) {
+    return 'Makan & Minuman';
+  }
+  if (/(bensin|parkir|ojol|gojek|grab|tol|kereta|transport|motor|oli|ban|stasiun)/i.test(combined)) {
+    return 'Transportasi';
   }
   if (/(listrik|wifi|pulsa|kuota|air|pdam|tagihan|utilit|token)/i.test(combined)) {
-    return 'Utilities';
+    return 'Tagihan & Utilitas';
   }
   if (/(kos|kontrakan|sewa|rent|asrama)/i.test(combined)) {
-    return 'Home Rent';
+    return 'Kos & Tempat Tinggal';
   }
   if (/(obat|dokter|apotek|vitamin|klinik|rs|kesehatan|health)/i.test(combined)) {
-    return 'Healthcare';
+    return 'Kesehatan';
   }
   if (/(hutang|cicilan|kredit|pinjaman|debt|paylater)/i.test(combined)) {
-    return 'Debt';
+    return 'Cicilan & Hutang';
   }
-  if (/(baju|celana|sepatu|shopee|tokopedia|tiktok|belanja|shopping|skincare)/i.test(combined)) {
-    return 'Shopping';
+  if (/(baju|celana|sepatu|shopee|tokopedia|tiktok|belanja|shopping|skincare|sabun|shampoo|indomaret|alfamart|kebutuhan|supplies|rumah)/i.test(combined)) {
+    return 'Belanja & Kebutuhan';
   }
-  if (/(sabun|shampoo|indomaret|alfamart|kebutuhan|supplies|rumah)/i.test(combined)) {
-    return 'Supplies';
+  if (/(nonton|bioskop|game|nongkrong|hiburan|netflix|spotify)/i.test(combined)) {
+    return 'Hiburan & Nongkrong';
   }
-  return 'Gifts';
+  return category || 'Lain-lain';
 }
 
 /**
  * Formats a transaction row for the "Spending" (Spending Tracker) tab:
- * [✓ (Boolean), Date, Description, Category, Total (Positive Number), Account, FlowType, BalanceAfterCash, BalanceAfterAtm, RawMessage]
+ * [✓ (Boolean), Date, Description, Category, Total (Positive Number), Account, FlowType, BalanceAfterCash, BalanceAfterAtmCombined, RawMessage]
  */
 function formatTransactionRow(tx) {
   const srcLabel = tx.wallet === 'ATM2' ? 'ATM 2' : tx.wallet === 'ATM' ? 'ATM 1' : 'CASH';
@@ -79,16 +112,19 @@ function formatTransactionRow(tx) {
   const typeLabel =
     tx.type === 'EXPENSE' ? 'PENGELUARAN' : tx.type === 'INCOME' ? 'PEMASUKAN' : 'PINDAH SALDO';
 
+  const combinedAtmBalance =
+    Number(tx.balance_after_atm || 0) + Number(tx.balance_after_atm2 || 0);
+
   return [
     true,
     formatWIBDate(tx.created_at),
     tx.description,
-    mapToDashboardCategory(tx.category, tx.description),
+    mapToDashboardCategory(tx.category, tx.description, tx.type),
     Math.abs(Number(tx.amount) || 0),
     accountLabel,
     typeLabel,
-    tx.balance_after_cash,
-    tx.balance_after_atm,
+    Number(tx.balance_after_cash || 0),
+    combinedAtmBalance,
     tx.raw_message || '-',
   ];
 }
@@ -130,15 +166,43 @@ const SPREADSHEET_ID = '${spreadsheetId}';
 const INITIAL_DATA = ${initialDataJson};
 
 const CATEGORIES = [
-  ['Home Rent', 1350000, 'Needs', 'Saldo ATM 1'],
-  ['Utilities', 450000, 'Needs', 'Saldo ATM 1'],
-  ['Food', 1450000, 'Needs', 'Uang Tunai'],
-  ['Supplies', 500000, 'Needs', 'Uang Tunai'],
-  ['Transportation', 300000, 'Needs', 'Uang Tunai'],
-  ['Healthcare', 200000, 'Needs', 'Uang Tunai'],
-  ['Debt', 250000, 'Needs', 'Saldo ATM 2'],
-  ['Shopping', 500000, 'Wants', 'Saldo ATM 2'],
-  ['Gifts', 500000, 'Wants', 'Uang Tunai']
+  ['Kos & Tempat Tinggal', 0, 'Needs', 'Saldo ATM 1'],
+  ['Tagihan & Utilitas', 0, 'Needs', 'Saldo ATM 1'],
+  ['Makan & Minuman', 0, 'Needs', 'Uang Tunai'],
+  ['Belanja & Kebutuhan', 0, 'Needs', 'Uang Tunai'],
+  ['Transportasi', 0, 'Needs', 'Uang Tunai'],
+  ['Kesehatan', 0, 'Needs', 'Uang Tunai'],
+  ['Cicilan & Hutang', 0, 'Needs', 'Saldo ATM 2'],
+  ['Hiburan & Nongkrong', 0, 'Wants', 'Saldo ATM 2'],
+  ['Lain-lain', 0, 'Wants', 'Uang Tunai']
+];
+
+const ENGLISH_TO_WA_CATEGORY = {
+  'Home Rent': 'Kos & Tempat Tinggal',
+  'Utilities': 'Tagihan & Utilitas',
+  'Food': 'Makan & Minuman',
+  'Supplies': 'Belanja & Kebutuhan',
+  'Transportation': 'Transportasi',
+  'Healthcare': 'Kesehatan',
+  'Debt': 'Cicilan & Hutang',
+  'Shopping': 'Hiburan & Nongkrong',
+  'Gifts': 'Lain-lain'
+};
+
+const WA_CATEGORY_OPTIONS = [
+  'Makan & Minuman',
+  'Transportasi',
+  'Tagihan & Utilitas',
+  'Belanja & Kebutuhan',
+  'Hiburan & Nongkrong',
+  'Kesehatan',
+  'Pendidikan',
+  'Kos & Tempat Tinggal',
+  'Cicilan & Hutang',
+  'Gaji & Bonus',
+  'Pemasukan Lainnya',
+  'Tarik / Setor Tunai',
+  'Lain-lain'
 ];
 
 const MONTH_OPTIONS = [
@@ -151,13 +215,95 @@ const ACCOUNT_OPTIONS = [
   'Uang Tunai',
   'Saldo ATM 1',
   'Saldo ATM 2',
+  'ATM 1 -> ATM 2',
+  'ATM 2 -> ATM 1',
   'ATM 1 -> CASH',
   'ATM 2 -> CASH',
   'CASH -> ATM 1',
-  'CASH -> ATM 2',
-  'ATM 1 -> ATM 2',
-  'ATM 2 -> ATM 1'
+  'CASH -> ATM 2'
 ];
+
+/**
+ * Menyelaraskan Dropdown Category (Kolom D) & Account (Kolom F) di tab Spending
+ * agar 100% sesuai dengan kategori WhatsApp & bebas segitiga merah ("Tidak Valid")
+ */
+function syncCategoryAndAccountDropdowns(ss) {
+  const reportSheet = ss.getSheetByName('Report');
+  const summarySheet = ss.getSheetByName('Summary');
+  const spendingSheet = ss.getSheetByName('Spending');
+
+  var customReportCategories = [];
+  if (reportSheet) {
+    const repCats = reportSheet.getRange('B9:B17').getValues();
+    for (var i = 0; i < repCats.length; i++) {
+      var rawName = String(repCats[i][0] || '').trim();
+      if (ENGLISH_TO_WA_CATEGORY[rawName]) {
+        rawName = ENGLISH_TO_WA_CATEGORY[rawName];
+        reportSheet.getRange(9 + i, 2).setValue(rawName);
+        if (summarySheet) {
+          summarySheet.getRange(8 + i, 3).setValue(rawName);
+        }
+      }
+      if (rawName && customReportCategories.indexOf(rawName) === -1) {
+        customReportCategories.push(rawName);
+      }
+    }
+  }
+
+  const mergedCategories = customReportCategories.slice();
+  for (var c = 0; c < WA_CATEGORY_OPTIONS.length; c++) {
+    if (mergedCategories.indexOf(WA_CATEGORY_OPTIONS[c]) === -1) {
+      mergedCategories.push(WA_CATEGORY_OPTIONS[c]);
+    }
+  }
+
+  if (spendingSheet) {
+    spendingSheet.getRange('H1:J1').setValue('Tunai, ATM 1 (Simpanan) & ATM 2 (Jajan)');
+    spendingSheet.getRange('F2').setFormula('=Report!D6+Report!H6+Report!I6');
+
+    const maxR = Math.max(spendingSheet.getLastRow() + 50, 150);
+
+    // 1. Pasang Dropdown Category (Kolom D) yang sinkron dengan WA & Report
+    const catRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(mergedCategories, true)
+      .setAllowInvalid(true)
+      .build();
+    spendingSheet.getRange(4, 4, maxR, 1).setDataValidation(catRule);
+
+    // 2. Pasang Dropdown Account (Kolom F) yang mendukung 3 Dompet & Rute Transfer (Bebas Segitiga Merah)
+    const accRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(ACCOUNT_OPTIONS, true)
+      .setAllowInvalid(true)
+      .build();
+    spendingSheet.getRange(4, 6, maxR, 1).setDataValidation(accRule);
+
+    // 3. Perbaiki otomatis baris transaksi yang tadi salah terpetakan ke Food / Gifts
+    const lastR = spendingSheet.getLastRow();
+    if (lastR >= 4) {
+      const numRows = lastR - 3;
+      const rowData = spendingSheet.getRange(4, 3, numRows, 5).getValues(); // Kolom C (Desc), D (Cat), E (Total), F (Account), G (Tipe Arus)
+      for (var r = 0; r < numRows; r++) {
+        var desc = String(rowData[r][0] || '').trim();
+        var cat = String(rowData[r][1] || '').trim();
+        var flowType = String(rowData[r][4] || '').trim();
+        if (!desc) continue;
+
+        var fixedCat = cat;
+        if (flowType === 'PEMASUKAN') {
+          fixedCat = /gaji|bonus|thr/i.test(desc) ? 'Gaji & Bonus' : 'Pemasukan Lainnya';
+        } else if (flowType === 'PINDAH SALDO') {
+          fixedCat = 'Tarik / Setor Tunai';
+        } else if (ENGLISH_TO_WA_CATEGORY[cat]) {
+          fixedCat = ENGLISH_TO_WA_CATEGORY[cat];
+        }
+
+        if (fixedCat !== cat) {
+          spendingSheet.getRange(4 + r, 4).setValue(fixedCat);
+        }
+      }
+    }
+  }
+}
 
 /**
  * Otomatis menampilkan menu "📊 Menu Keuangan" di bar atas Google Spreadsheet
@@ -168,7 +314,7 @@ function onOpen() {
       .createMenu('📊 Menu Keuangan')
       .addItem('🧹 Reset Saldo & Transaksi ke Rp 0 (Kategori Tetap Aman)', 'resetSaldoDanTransaksiKeNolTanpaUbahKategori')
       .addSeparator()
-      .addItem('🔄 Pasang Dropdown Bulan & ATM 1 + ATM 2 (Tanpa Reset)', 'updateDropdownDanAtmTanpaReset')
+      .addItem('🔄 Rapikan Dropdown Category & Account Sesuai WA (Tanpa Reset)', 'updateDropdownDanAtmTanpaReset')
       .addToUi();
   } catch (e) {}
 }
@@ -177,7 +323,7 @@ function onOpen() {
  * FUNGSI #1 (MULAI DARI NOL BERSIH - KATEGORI TETAP AMAN):
  * - Mengatur Saldo Awal Uang Tunai, Saldo ATM 1, dan Saldo ATM 2 di tab [Setup] menjadi Rp 0
  * - Menghapus baris transaksi percobaan/dummy di tab [Spending]
- * - 100% TIDAK mengubah nama kategori maupun angka Allocation/Budget di tab [Report] & [Budgeting]!
+ * - Menyelaraskan Dropdown Category & Account agar 100% sama dengan WhatsApp
  */
 function resetSaldoDanTransaksiKeNolTanpaUbahKategori() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -199,7 +345,7 @@ function resetSaldoDanTransaksiKeNolTanpaUbahKategori() {
     spendingSheet.getRange(4, 1, maxR, 1).setValue(false);
   }
 
-  // Nol-kan angka Allocation/Target Budget contoh (D9:D17) di Report tanpa mengubah nama Kategori (B9:C17)
+  // Nol-kan angka Allocation/Target Budget contoh (D9:D17) di Report
   const reportSheet = ss.getSheetByName('Report');
   if (reportSheet) {
     reportSheet.getRange('D9:D17').setValue(0).setNumberFormat('"Rp"#,##0');
@@ -210,8 +356,8 @@ function resetSaldoDanTransaksiKeNolTanpaUbahKategori() {
 
 /**
  * FUNGSI UTAMA #2 (AMAN / NON-DESTRUKTIF):
- * Hanya menambahkan Dropdown Bulan (filter otomatis) + Saldo ATM 1 (Simpanan) & Saldo ATM 2 (Jajan)
- * TANPA mereset atau menghapus editan manual kamu di Spreadsheet!
+ * Menyelaraskan Dropdown Category & Account sesuai WA + Dropdown Bulan + Kartu ATM 1 & ATM 2
+ * TANPA mereset atau menghapus transaksi di Spreadsheet!
  */
 function updateDropdownDanAtmTanpaReset() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -241,18 +387,8 @@ function updateDropdownDanAtmTanpaReset() {
     }
   }
 
-  // 2. Update Dropdown Kolom Account di Tab [Spending] Tanpa Menghapus Transaksi
-  const spendingSheet = ss.getSheetByName('Spending');
-  if (spendingSheet) {
-    spendingSheet.getRange('H1:J1').setValue('Tunai, ATM 1 (Simpanan) & ATM 2 (Jajan)');
-    spendingSheet.getRange('F2').setFormula('=Report!D6+Report!H6+Report!I6');
-    const accRule = SpreadsheetApp.newDataValidation()
-      .requireValueInList(ACCOUNT_OPTIONS, true)
-      .setAllowInvalid(true)
-      .build();
-    const maxR = Math.max(spendingSheet.getLastRow() + 30, 100);
-    spendingSheet.getRange(4, 6, maxR, 1).setDataValidation(accRule);
-  }
+  // 2. Sinkronkan Dropdown Category (Kolom D) & Account (Kolom F) + Perbaiki Baris Lama
+  syncCategoryAndAccountDropdowns(ss);
 
   // 3. Pasang Dropdown Tahun, Dropdown Bulan (Filter Aktif), & Kartu ATM 1 + ATM 2 di Tab [Report]
   applyReportDropdownAndAtmCards(reportSheet);
@@ -788,6 +924,7 @@ function doPost(e) {
         spendingSheet.getRange(targetRow + rIdx, 5).setNumberFormat('"Rp"#,##0');
         spendingSheet.getRange(targetRow + rIdx, 8, 1, 2).setNumberFormat('"Rp"#,##0');
       }
+      syncCategoryAndAccountDropdowns(ss);
     }
 
     return ContentService.createTextOutput(JSON.stringify({ ok: true, message: 'Spending & Report Dashboard Updated!' }))
