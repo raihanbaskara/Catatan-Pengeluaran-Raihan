@@ -436,16 +436,28 @@ async function parseFinancialMessage(rawText) {
   const baseUrl = (settings.ai_base_url || process.env.AI_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/+$/, '');
   const primaryModel = settings.ai_model || process.env.AI_MODEL || 'qwen/qwen3.8-27b:free';
 
-  // Quick command check first (instant response for cek saldo / undo / rekap / set saldo / transfer)
+  // Quick command check first (instant response for cek saldo / undo / rekap / set saldo)
   const localCheck = localParseMessage(rawText);
   if (['CHECK_BALANCE', 'UNDO', 'SUMMARY', 'SET_BALANCE'].includes(localCheck.intent)) {
     return localCheck;
   }
 
-  // If local deterministic parser already confidently matched a transaction or inter-ATM transfer, return fast if no API key
+  // Always use deterministic local parser for explicit top-ups ("isi...", "uang masuk...") and transfers ("pindah...", "tarik tunai...")
+  // so ATM 1 / ATM 2 balance checks are 100% respected and never go negative
+  if (
+    localCheck.intent === 'TRANSACTION' &&
+    /\b(isi|top\s*up|uang\s+masuk|gaji|pindah|alokasi|geser|oper|tarik\s+tunai|setor\s+tunai)\b/i.test(rawText)
+  ) {
+    return localCheck;
+  }
+
+  // If no API key, return localCheck
   if (!apiKey) {
     return localCheck;
   }
+
+  const walletsNow = getWallets();
+  const atm1Bal = Number(walletsNow?.atm?.balance || 0);
 
   const systemPrompt = `Kamu adalah AI pencatat keuangan pribadi pintar berbahasa Indonesia dengan sistem 3 Dompet.
 Tugasmu mengekstrak chat WhatsApp user menjadi JSON murni (tanpa markdown block).
@@ -453,23 +465,23 @@ Tugasmu mengekstrak chat WhatsApp user menjadi JSON murni (tanpa markdown block)
 ATURAN 3 DOMPET (WAJIB DIIKUTI):
 1. "CASH" (Saldo Uang Tunai):
    - WAJIB dipilih untuk PENGELUARAN ("EXPENSE") jika user TIDAK menyebutkan metode bayar (contoh: "beli makan seblak 10 ribu", "beli bensin 20rb").
-2. "ATM" (Saldo ATM 1 — Simpanan Utama):
-   - WAJIB dipilih untuk PEMASUKAN ("INCOME") seperti gaji/uang masuk (contoh: "gaji masuk 3 juta", "uang masuk 2 juta"), kecuali user eksplisit menyebut "masuk atm 2" atau "masuk tunai".
-   - Hanya dipilih untuk pengeluaran jika user eksplisit menyebut "atm 1" atau "simpanan".
+2. "ATM" (Saldo ATM 1 — Simpanan Utama, Saldo saat ini: Rp ${atm1Bal}):
+   - WAJIB dipilih untuk PEMASUKAN ("INCOME") seperti gaji/uang masuk/isi atm 1 (contoh: "gaji masuk 3 juta", "uang masuk 2 juta", "isi atm 1 15 ribu"), kecuali user eksplisit menyebut "masuk atm 2" atau "masuk tunai".
 3. "ATM2" (Saldo ATM 2 — Dompet Jajan / QRIS):
    - WAJIB dipilih untuk semua PENGELUARAN non-tunai harian (contoh: "qris", "tf", "transfer", "debit", "atm", "bca", "mandiri", "gopay", "dana", misal: "beli kopi 18rb pakai qris").
+   - Jika user mengetik "isi atm 2 <nominal>" dan Saldo ATM 1 saat ini Rp 0 (atau kurang dari nominal), catat sebagai "INCOME" (Pemasukan) ke wallet "ATM2".
 4. Alokasi / Pindah Saldo ("TRANSFER"):
-   - Jika user memindahkan uang ke ATM 2 untuk jajan (contoh: "isi atm 2 500 ribu", "pindah ke atm 2 500rb"), gunakan type: "TRANSFER", wallet: "ATM", targetWallet: "ATM2".
-   - Jika user tarik tunai (contoh: "tarik tunai 100rb"), gunakan type: "TRANSFER", wallet: "ATM2", targetWallet: "CASH".
+   - Jika user memindahkan uang dari ATM 1 ke ATM 2 ("pindah 15 ribu ke atm 2"), gunakan type: "TRANSFER", wallet: "ATM", targetWallet: "ATM2", category: "Tarik / Setor Tunai".
+   - Jika user tarik tunai ("tarik tunai 100rb"), gunakan type: "TRANSFER", wallet: "ATM2", targetWallet: "CASH", category: "Tarik / Setor Tunai".
 
-Format JSON yang wajib dikembalikan:
+Format JSON yang wajib dikembalikan (Category WAJIB persis salah satu dari daftar ini):
 {
   "intent": "TRANSACTION" | "CHECK_BALANCE" | "SUMMARY" | "UNDO" | "UNKNOWN",
   "items": [
     {
       "type": "EXPENSE" | "INCOME" | "TRANSFER",
       "description": "Nama transaksi rapi, misal: Beli kopi",
-      "category": "Makanan & Minuman" | "Transportasi" | "Belanja & Kebutuhan" | "Tagihan & Utilitas" | "Hiburan & Langganan" | "Kesehatan" | "Pendidikan" | "Gaji & Bonus" | "Tarik / Setor Tunai" | "Pengeluaran Lainnya",
+      "category": "Makan & Minuman" | "Transportasi" | "Belanja & Kebutuhan" | "Tagihan & Utilitas" | "Hiburan & Nongkrong" | "Kesehatan" | "Pendidikan" | "Kos & Tempat Tinggal" | "Cicilan & Hutang" | "Gaji & Bonus" | "Pemasukan Lainnya" | "Tarik / Setor Tunai" | "Lain-lain",
       "wallet": "CASH" | "ATM" | "ATM2",
       "targetWallet": "CASH" | "ATM" | "ATM2" | null,
       "amount": 18000
