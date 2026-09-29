@@ -324,21 +324,29 @@ function localParseMessage(rawText) {
     }
   }
 
-  // 5C. Check Tarik Tunai / Setor Tunai (Default Tarik Tunai potong ATM 2 Jajan, kecuali sebut ATM 1)
-  if (/(tarik\s*tunai|ambil\s*uang\s*di\s*atm|ambil\s*atm)/i.test(lower)) {
-    const isAtm1 = /\batm\s*1\b/i.test(lower);
+  // 5C. Check Tarik Tunai / Setor Tunai (Default potong ATM 2 Jajan jika cukup, atau otomatis ATM 1 jika ATM 2 tidak cukup)
+  if (/(tarik\s*tunai|ambil\s*uang\s*di\s*atm|ambil\s*atm|ambil\s*tunai)/i.test(lower)) {
     const cleanedForAmount = text.replace(/\batm\s*[12]\b/gi, 'atm');
     const amount = parseIndonesianAmount(cleanedForAmount);
     if (amount > 0) {
+      const explicitAtm1 = /\batm\s*1\b/i.test(lower);
+      const explicitAtm2 = /\batm\s*2\b/i.test(lower);
+      const currentWallets = getWallets();
+      const atm1Bal = Number(currentWallets?.atm?.balance || 0);
+      const atm2Bal = Number(currentWallets?.atm2?.balance || 0);
+
+      // Pilih ATM 1 jika disebut eksplisit "atm 1", ATAU jika user tidak menyebut nomor ATM tapi saldo ATM 2 kurang dan ATM 1 cukup
+      const useAtm1 = explicitAtm1 || (!explicitAtm2 && atm2Bal < amount && atm1Bal >= amount);
+
       return {
         intent: 'TRANSACTION',
         provider: 'local-nlp',
         items: [
           {
             type: 'TRANSFER',
-            description: isAtm1 ? 'Tarik Tunai ATM 1 ke Dompet Tunai' : 'Tarik Tunai ATM 2 ke Dompet Tunai',
+            description: useAtm1 ? 'Tarik Tunai ATM 1 ke Dompet Tunai' : 'Tarik Tunai ATM 2 ke Dompet Tunai',
             category: 'Tarik / Setor Tunai',
-            wallet: isAtm1 ? 'ATM' : 'ATM2',
+            wallet: useAtm1 ? 'ATM' : 'ATM2',
             targetWallet: 'CASH',
             amount,
           },
