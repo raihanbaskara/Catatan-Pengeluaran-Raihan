@@ -1,4 +1,4 @@
-const { getSettings } = require('../db/database');
+const { getSettings, getWallets } = require('../db/database');
 
 /**
  * Parses Indonesian amount strings like:
@@ -325,7 +325,7 @@ function localParseMessage(rawText) {
   }
 
   // 5C. Check Tarik Tunai / Setor Tunai (Default potong ATM 2 Jajan jika cukup, atau otomatis ATM 1 jika ATM 2 tidak cukup)
-  if (/(tarik\s*tunai|ambil\s*uang\s*di\s*atm|ambil\s*atm|ambil\s*tunai)/i.test(lower)) {
+  if (/(tarik\s*(?:tunai|runai|uang|cash|atm|dari\s*atm)|ambil\s*(?:uang|atm|tunai|runai|cash))/i.test(lower)) {
     const cleanedForAmount = text.replace(/\batm\s*[12]\b/gi, 'atm');
     const amount = parseIndonesianAmount(cleanedForAmount);
     if (amount > 0) {
@@ -454,7 +454,8 @@ async function parseFinancialMessage(rawText) {
   // so ATM 1 / ATM 2 balance checks are 100% respected and never go negative
   if (
     localCheck.intent === 'TRANSACTION' &&
-    /\b(isi|top\s*up|uang\s+masuk|gaji|pindah|alokasi|geser|oper|tarik\s+tunai|setor\s+tunai)\b/i.test(rawText)
+    (localCheck.items?.some((i) => i.type === 'TRANSFER') ||
+      /\b(isi|top\s*up|uang\s+masuk|gaji|pindah|alokasi|geser|oper|tarik|ambil|setor)\b/i.test(rawText))
   ) {
     return localCheck;
   }

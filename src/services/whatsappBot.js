@@ -45,16 +45,6 @@ async function startWhatsAppBot(onStateUpdate = () => {}) {
     const authDir = path.join(baseDataDir, 'wa-auth');
     if (!fs.existsSync(authDir)) {
       fs.mkdirSync(authDir, { recursive: true });
-    } else {
-      // Purge corrupted Signal session-*.json files (which cause "Bad MAC Error" on 244448164364471.0 & "Menunggu pesan ini" on iPhone)
-      // while preserving creds.json so the bot stays logged in without needing a QR rescan
-      try {
-        for (const file of fs.readdirSync(authDir)) {
-          if (file.startsWith('session-') || file.startsWith('sender-key-')) {
-            fs.rmSync(path.join(authDir, file), { force: true });
-          }
-        }
-      } catch {}
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(authDir);
