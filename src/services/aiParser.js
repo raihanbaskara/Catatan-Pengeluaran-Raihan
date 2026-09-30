@@ -128,18 +128,16 @@ function detectCategory(text, type = 'EXPENSE') {
   const lower = text.toLowerCase();
   if (type === 'TRANSFER') return 'Tarik / Setor Tunai';
   if (type === 'INCOME') {
-    if (/(gaji|upah|thr|bonus)/i.test(lower)) return 'Gaji & Bonus';
-    if (/(jual|jualan|profit|untung|freelance|proyek)/i.test(lower)) return 'Bisnis & Freelance';
-    if (/(dikasih|uang jajan|kiriman|hadiah)/i.test(lower)) return 'Uang Saku & Kiriman';
+    if (/(gaji|upah|thr|bonus|komisi)/i.test(lower)) return 'Gaji & Bonus';
     return 'Pemasukan Lainnya';
   }
 
   if (
-    /(makan|minum|seblak|bakso|mie|nasi|ayam|kopi|es\b|teh|jajan|snack|sarapan| makan|warteg|resto|cafe|gofood|grabfood|air|cilok|gorengan|sate|soto|pecel)/i.test(
+    /(makan|minum|seblak|bakso|mie|nasi|ayam|kopi|es\b|teh|jajan|snack|sarapan|warteg|resto|cafe|gofood|grabfood|cilok|gorengan|sate|soto|pecel)/i.test(
       lower
     )
   ) {
-    return 'Makanan & Minuman';
+    return 'Makan & Minuman';
   }
   if (/(bensin|pertalite|pertamax|parkir|ojol|gojek|grab|maxim|tol|kereta|bus|transport|service motor|oli|ban)/i.test(lower)) {
     return 'Transportasi';
@@ -151,7 +149,7 @@ function detectCategory(text, type = 'EXPENSE') {
     return 'Belanja & Kebutuhan';
   }
   if (/(nonton|bioskop|game|topup|netflix|spotify|nongkrong|liburan|wisata|hiburan)/i.test(lower)) {
-    return 'Hiburan & Langganan';
+    return 'Hiburan & Nongkrong';
   }
   if (/(obat|dokter|apotek|vitamin|rumah sakit|klinik|kesehatan)/i.test(lower)) {
     return 'Kesehatan';
@@ -160,7 +158,7 @@ function detectCategory(text, type = 'EXPENSE') {
     return 'Pendidikan';
   }
 
-  return 'Pengeluaran Lainnya';
+  return 'Lain-lain';
 }
 
 /**
@@ -218,21 +216,22 @@ function localParseMessage(rawText) {
     };
   }
 
-  // 4B. Check "isi [tunai/cash/uang] [nominal]" or plain "isi [nominal]" (NOT "isi bensin/pulsa/kuota/token/air/galon/angin/gas")
+  // 4B. Check "isi/masuk [tunai/cash/uang] [nominal]" or plain "masuk tunai [nominal]" (NOT "isi bensin/pulsa/kuota/token/air/galon/angin/gas")
   if (
-    /^isi\s+(?:uang\s+tunai|tunai|cash|dompet|uang)?\s*(?:rp\.?\s*)?\d+/i.test(lower) &&
+    /^(?:isi|masuk|uang\s*masuk|pemasukan|terima|dapat|dapet)\s+(?:uang\s+tunai|tunai|cash|dompet|uang)?\s*(?:rp\.?\s*)?\d+/i.test(lower) &&
     !/\b(bensin|pertalite|pertamax|pulsa|kuota|paket|token|listrik|air|galon|angin|gas|etoll|flazz|emoney|gopay|ovo|dana|shopeepay)\b/i.test(lower)
   ) {
     const amount = parseIndonesianAmount(text);
     if (amount > 0) {
+      const isGaji = /gaji|upah|bonus|thr/i.test(lower);
       return {
         intent: 'TRANSACTION',
         provider: 'local-nlp',
         items: [
           {
             type: 'INCOME',
-            description: 'Isi Saldo Uang Tunai',
-            category: 'Gaji & Bonus',
+            description: 'Pemasukan Uang Tunai',
+            category: isGaji ? 'Gaji & Bonus' : 'Pemasukan Lainnya',
             wallet: 'CASH',
             amount,
           },
@@ -392,7 +391,7 @@ function localParseMessage(rawText) {
   for (const seg of segments) {
     // Must contain either a currency unit (rb, ribu, k, jt, juta, rp) OR a financial action verb
     const hasCurrencyOrVerb =
-      /\b(rp|ribu|rb|k|juta|jt|goceng|ceban|goban|cepek|secepek|beli|bayar|jajan|makan|minum|parkir|bensin|topup|top\s*up|tf|transfer|dapat|dapet|terima|gaji|masuk|keluar|abis|habis|ongkir|sewa|tagihan|kopi|seblak)\b/i.test(
+      /(?:rp\.?\s*\d+|\d+\s*(?:rb|k|jt|juta|ribu)|goceng|ceban|goban|cepek|secepek|\b(?:rp|ribu|rb|k|juta|jt|beli|bayar|jajan|makan|minum|parkir|bensin|topup|top\s*up|tf|transfer|dapat|dapet|terima|gaji|masuk|pemasukan|dikasih|kiriman|bonus|thr|amplop|untung|laba|jual|jualan|keluar|abis|habis|ongkir|sewa|tagihan|kopi|seblak|tunai|cash)\b)/i.test(
         seg
       );
     if (!hasCurrencyOrVerb) continue;
@@ -402,12 +401,24 @@ function localParseMessage(rawText) {
     if (amount <= 0 || amount > 500_000_000) continue;
 
     const isIncome =
-      /\b(dapat|dapet|terima|gaji|masuk|pemasukan|dikasih|bonus|thr|untung|jual)\b/i.test(seg) &&
+      /\b(dapat|dapet|terima|gaji|masuk|pemasukan|dikasih|kiriman|bonus|thr|amplop|untung|jual|nemu)\b/i.test(seg) &&
       !/\b(beli|bayar|buat|untuk|belanja|jajan)\b/i.test(seg);
 
     const type = isIncome ? 'INCOME' : 'EXPENSE';
     const wallet = detectWallet(seg, type);
-    const description = cleanDescription(seg);
+    let description = cleanDescription(seg);
+    if (type === 'INCOME') {
+      const descLower = description.toLowerCase();
+      if (['masuk', 'pemasukan', 'dapat', 'dapet', 'terima', 'transaksi keuangan', 'uang masuk'].includes(descLower)) {
+        if (wallet === 'CASH') {
+          description = 'Pemasukan Tunai';
+        } else if (wallet === 'ATM2') {
+          description = 'Pemasukan ATM 2';
+        } else {
+          description = 'Uang Masuk Simpanan';
+        }
+      }
+    }
     const category = detectCategory(seg, type);
 
     items.push({
@@ -450,12 +461,12 @@ async function parseFinancialMessage(rawText) {
     return localCheck;
   }
 
-  // Always use deterministic local parser for explicit top-ups ("isi...", "uang masuk...") and transfers ("pindah...", "tarik tunai...")
+  // Always use deterministic local parser for explicit top-ups ("isi...", "uang masuk..."), income, and transfers ("pindah...", "tarik tunai...")
   // so ATM 1 / ATM 2 balance checks are 100% respected and never go negative
   if (
     localCheck.intent === 'TRANSACTION' &&
-    (localCheck.items?.some((i) => i.type === 'TRANSFER') ||
-      /\b(isi|top\s*up|uang\s+masuk|gaji|pindah|alokasi|geser|oper|tarik|ambil|setor)\b/i.test(rawText))
+    (localCheck.items?.some((i) => i.type === 'TRANSFER' || i.type === 'INCOME') ||
+      /\b(isi|top\s*up|uang\s+masuk|masuk|pemasukan|gaji|pindah|alokasi|geser|oper|tarik|ambil|setor|dapat|dapet|terima|dikasih)\b/i.test(rawText))
   ) {
     return localCheck;
   }

@@ -78,12 +78,12 @@ async function processIncomingChat(rawMessage, source = 'WHATSAPP', onStateChang
           {
             type: delta > 0 ? 'INCOME' : 'EXPENSE',
             description: delta > 0 ? `Saldo Awal / Isi ${getWalletDisplayName(parsed.wallet).replace(/^[^\s]+\s/, '')}` : `Penyesuaian Saldo`,
-            category: delta > 0 ? 'Gaji & Bonus' : 'Pengeluaran Lainnya',
+            category: delta > 0 ? 'Gaji & Bonus' : 'Lain-lain',
             wallet: parsed.wallet,
             amount: Math.abs(delta),
           },
         ],
-        text,
+        rawMessage,
         source
       );
       wallets = txResult.wallets;
